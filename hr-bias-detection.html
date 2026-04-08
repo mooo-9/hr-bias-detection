@@ -156,6 +156,7 @@
     const ETHNICITIES = ['White', 'Black', 'Hispanic', 'Asian', 'Middle Eastern'];
     const AGE_GROUPS  = ['20-30', '31-40', '41-50', '51+'];
     const EVALUATORS  = ['MGR-A', 'MGR-B', 'MGR-C'];
+    const DEFAULT_KPI_SCORES = { tenureScore: 0.6, kpiScore: 0.6, peerScore: 0.6 };
     // ══════════════════════════════════════════════
     // SEED DATA — 50 evaluation records (raw, no computed fields)
     // MGR-A: lenient (rates +0.8–2.2 above predicted)
@@ -521,7 +522,7 @@
         }
         const id = `E${String(evaluations.length + 1).padStart(3,'0')}`;
         const raw = { ...form, id, timestamp: new Date().toISOString().split('T')[0],
-          tenureScore: 0.6, kpiScore: 0.6, peerScore: 0.6 };
+          ...DEFAULT_KPI_SCORES };
         const processed = processRecord(raw);
         setEvaluations(prev => [...prev, processed]);
         setResult(processed);
@@ -777,7 +778,7 @@
           `Equal Opportunity Difference  : ${metrics.equalOpportunityDiff?.toFixed(2) ?? 'N/A'}  (threshold < 0.10)`,
           '',
           '── EVALUATOR SUMMARY ────────────────────────────',
-          ...['MGR-A', 'MGR-B', 'MGR-C'].map(mgr => {
+          ...EVALUATORS.map(mgr => {
             const evals = evaluations.filter(e => e.evaluatorId === mgr);
             const avgRating = evals.length ? (evals.reduce((s, e) => s + e.rating, 0) / evals.length).toFixed(2) : 'N/A';
             const flaggedCount = evals.filter(e => e.flagged).length;
@@ -785,7 +786,7 @@
           }),
           '',
           '── DEPARTMENT SUMMARY ───────────────────────────',
-          ...['Engineering', 'Sales', 'Marketing', 'Finance', 'Operations'].map(dept => {
+          ...DEPARTMENTS.map(dept => {
             const evals = evaluations.filter(e => e.department === dept);
             const avg = evals.length ? (evals.reduce((s, e) => s + e.rating, 0) / evals.length).toFixed(2) : 'N/A';
             return `${dept}: avg rating ${avg} (${evals.length} evaluations)`;
@@ -814,14 +815,8 @@
         setActiveModule(6);
       };
 
-      // moduleProps is wired to real module components in Tasks 5–10
-      const moduleProps = { evaluations, setEvaluations, setActiveModule, selectedEvaluationId,
-        setSelectedEvaluationId, navigateToXAI };
-
       // renderModule returns only the active module — replaced with real components in Tasks 5–10
       const renderModule = () => {
-        const props = { evaluations, setEvaluations, setActiveModule, selectedEvaluationId,
-          setSelectedEvaluationId, navigateToXAI };
         if (activeModule === 1) return <EvaluationForm evaluations={evaluations} setEvaluations={setEvaluations} />;
         const placeholders = {
           2: 'Analytics Dashboard',
