@@ -683,6 +683,214 @@
     }
 
     // ── END MODULE 1 ──
+
+    // ══════════════════════════════════════════════
+    // MODULE 2 — ANALYTICS DASHBOARD
+    // ══════════════════════════════════════════════
+
+    function AnalyticsDashboard({ evaluations }) {
+      const metrics = useMemo(() => computeFairnessMetrics(evaluations), [evaluations]);
+
+      // 1. Rating Distribution by gender + department
+      const ratingDistData = useMemo(() => {
+        const genders = ['Male', 'Female'];
+        const colors  = ['#3b82f6', '#ec4899'];
+        return {
+          labels: DEPARTMENTS,
+          datasets: genders.map((g, i) => ({
+            label: g,
+            backgroundColor: colors[i] + 'cc',
+            data: DEPARTMENTS.map(dept => {
+              const arr = evaluations.filter(e => e.department === dept && e.gender === g);
+              return arr.length ? (arr.reduce((s, e) => s + e.rating, 0) / arr.length).toFixed(2) : 0;
+            }),
+          })),
+        };
+      }, [evaluations]);
+
+      // 2. Evaluator consistency
+      const evaluatorData = useMemo(() => {
+        return {
+          labels: EVALUATORS,
+          datasets: [{
+            label: 'Avg Rating',
+            backgroundColor: ['#22c55ecc','#ef4444cc','#f59e0bcc'],
+            data: EVALUATORS.map(mgr => {
+              const arr = evaluations.filter(e => e.evaluatorId === mgr);
+              if (!arr.length) return 0;
+              const avg = arr.reduce((s,e) => s + e.rating, 0) / arr.length;
+              return parseFloat(avg.toFixed(2));
+            }),
+          }],
+        };
+      }, [evaluations]);
+
+      const evaluatorStdDev = useMemo(() => EVALUATORS.map(mgr => {
+        const arr = evaluations.filter(e => e.evaluatorId === mgr);
+        if (!arr.length) return 0;
+        const avg = arr.reduce((s,e) => s + e.rating, 0) / arr.length;
+        const variance = arr.reduce((s,e) => s + Math.pow(e.rating - avg, 2), 0) / arr.length;
+        return Math.sqrt(variance).toFixed(2);
+      }), [evaluations]);
+
+      // 3. Sentiment by demographic group
+      const sentimentData = useMemo(() => {
+        const groups = ['Male', 'Female', 'Non-binary'];
+        return {
+          labels: groups,
+          datasets: [{
+            label: 'Avg Sentiment',
+            backgroundColor: groups.map(g => {
+              const arr = evaluations.filter(e => e.gender === g);
+              if (!arr.length) return '#94a3b8';
+              const avg = arr.reduce((s,e) => s + e.sentiment, 0) / arr.length;
+              return avg >= 0 ? '#22c55ecc' : '#ef4444cc';
+            }),
+            data: groups.map(g => {
+              const arr = evaluations.filter(e => e.gender === g);
+              if (!arr.length) return 0;
+              return parseFloat((arr.reduce((s,e) => s + e.sentiment, 0) / arr.length).toFixed(3));
+            }),
+          }],
+        };
+      }, [evaluations]);
+
+      // 4. Heatmap: ethnicity rows × department cols, value = deviation from company mean
+      const companyMean = useMemo(() =>
+        evaluations.reduce((s,e) => s + e.rating, 0) / evaluations.length
+      , [evaluations]);
+
+      const heatmapData = useMemo(() => {
+        return ETHNICITIES.map(eth =>
+          DEPARTMENTS.map(dept => {
+            const arr = evaluations.filter(e => e.ethnicity === eth && e.department === dept);
+            if (!arr.length) return null;
+            return parseFloat((arr.reduce((s,e) => s + e.rating, 0) / arr.length - companyMean).toFixed(2));
+          })
+        );
+      }, [evaluations, companyMean]);
+
+      const heatColor = (val) => {
+        if (val === null) return '#f1f5f9';
+        const abs = Math.min(Math.abs(val), 2);
+        if (val > 0.2) return `rgba(34,197,94,${0.2 + abs * 0.3})`;
+        if (val < -0.2) return `rgba(239,68,68,${0.2 + abs * 0.3})`;
+        return '#fef9c3';
+      };
+
+      // 5. Fairness metric cards config
+      const fairnessCards = [
+        {
+          label: 'Demographic Parity Difference',
+          value: metrics.demographicParityDiff?.toFixed(2) ?? '—',
+          threshold: '< 0.20',
+          status: !metrics.demographicParityDiff ? 'fair'
+            : metrics.demographicParityDiff < 0.2 ? 'fair'
+            : metrics.demographicParityDiff < 0.4 ? 'risk' : 'biased',
+          desc: 'Male avg: ' + (metrics.maleAvg?.toFixed(2) ?? '—') + '  Female avg: ' + (metrics.femaleAvg?.toFixed(2) ?? '—'),
+        },
+        {
+          label: 'Disparate Impact Ratio',
+          value: metrics.disparateImpactRatio?.toFixed(2) ?? '—',
+          threshold: '≥ 0.80',
+          status: !metrics.disparateImpactRatio ? 'fair'
+            : metrics.disparateImpactRatio >= 0.85 ? 'fair'
+            : metrics.disparateImpactRatio >= 0.80 ? 'risk' : 'biased',
+          desc: 'Female avg / Male avg rating ratio',
+        },
+        {
+          label: 'Equal Opportunity Difference',
+          value: metrics.equalOpportunityDiff?.toFixed(2) ?? '—',
+          threshold: '< 0.10',
+          status: !metrics.equalOpportunityDiff ? 'fair'
+            : metrics.equalOpportunityDiff < 0.10 ? 'fair'
+            : metrics.equalOpportunityDiff < 0.20 ? 'risk' : 'biased',
+          desc: 'TPR male: ' + (metrics.maleTPR?.toFixed(2) ?? '—') + '  TPR female: ' + (metrics.femaleTPR?.toFixed(2) ?? '—'),
+        },
+      ];
+
+      return (
+        <div style={{ padding:'24px' }}>
+          <h2 style={{ margin:'0 0 20px', fontSize:'20px', color:'#1e293b' }}>📊 Analytics Dashboard</h2>
+
+          {/* Fairness Metric Cards */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', marginBottom:'20px' }}>
+            {fairnessCards.map(c => (
+              <Card key={c.label} style={{ margin:0 }}>
+                <div style={{ fontSize:'12px', color:'#64748b', marginBottom:'6px' }}>{c.label}</div>
+                <div style={{ display:'flex', alignItems:'baseline', gap:'10px', marginBottom:'8px' }}>
+                  <span style={{ fontSize:'28px', fontWeight:700, color:'#1e293b' }}>{c.value}</span>
+                  <span style={{ fontSize:'12px', color:'#94a3b8' }}>threshold {c.threshold}</span>
+                </div>
+                <StatusBadge status={c.status} />
+                <div style={{ fontSize:'12px', color:'#64748b', marginTop:'8px' }}>{c.desc}</div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Charts row */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginBottom:'20px' }}>
+            <Card title="Rating Distribution by Gender &amp; Department">
+              <ChartCanvas chartData={ratingDistData} chartType="bar"
+                chartOptions={{ scales: { x: { stacked:false }, y: { min:0, max:5, title:{ display:true, text:'Avg Rating' } } } }} />
+            </Card>
+            <Card title="Evaluator Consistency (Avg Rating)">
+              <ChartCanvas chartData={evaluatorData} chartType="bar"
+                chartOptions={{ indexAxis:'y', scales: { x: { min:0, max:5 } },
+                  plugins: { legend:{ display:false } } }} />
+              <div style={{ display:'flex', gap:'16px', marginTop:'12px' }}>
+                {EVALUATORS.map((mgr, i) => (
+                  <div key={mgr} style={{ fontSize:'12px', color:'#64748b' }}>
+                    {mgr}: σ = <strong style={{ color: parseFloat(evaluatorStdDev[i]) > 1.0 ? '#ef4444' : '#22c55e' }}>
+                      {evaluatorStdDev[i]}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
+            <Card title="Sentiment Analysis by Gender Group">
+              <ChartCanvas chartData={sentimentData} chartType="bar"
+                chartOptions={{ scales: { y: { min:-1, max:1, title:{ display:true, text:'Avg Sentiment' } } },
+                  plugins: { legend:{ display:false } } }} />
+            </Card>
+            <Card title="Demographic Disparity Heatmap (Rating Deviation from Mean)">
+              <div style={{ overflowX:'auto' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding:'6px 8px', textAlign:'left', color:'#64748b', fontWeight:600 }}>Ethnicity</th>
+                      {DEPARTMENTS.map(d => (
+                        <th key={d} style={{ padding:'6px 8px', textAlign:'center', color:'#64748b', fontWeight:600 }}>{d}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ETHNICITIES.map((eth, ri) => (
+                      <tr key={eth}>
+                        <td style={{ padding:'6px 8px', fontWeight:600, color:'#374151' }}>{eth}</td>
+                        {heatmapData[ri].map((val, ci) => (
+                          <td key={ci} style={{ padding:'6px 8px', textAlign:'center',
+                            background: heatColor(val), borderRadius:'4px', fontWeight: val !== null ? 600 : 400,
+                            color: val === null ? '#94a3b8' : Math.abs(val) > 0.2 ? '#1e293b' : '#374151' }}>
+                            {val === null ? '—' : (val > 0 ? '+' : '') + val}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ fontSize:'11px', color:'#94a3b8', marginTop:'8px' }}>
+                Company mean rating: {companyMean.toFixed(2)} | Green = above mean, Red = below mean
+              </div>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
     // ── MODULES 2–6 WILL BE ADDED BELOW ──
 
     // ══════════════════════════════════════════════
@@ -815,16 +1023,10 @@
         setActiveModule(6);
       };
 
-      // renderModule returns only the active module — replaced with real components in Tasks 5–10
       const renderModule = () => {
         if (activeModule === 1) return <EvaluationForm evaluations={evaluations} setEvaluations={setEvaluations} />;
-        const placeholders = {
-          2: 'Analytics Dashboard',
-          3: 'ML Bias Predictor',
-          4: 'NLP Analyzer',
-          5: 'Fairness Framework',
-          6: 'XAI Explainability',
-        };
+        if (activeModule === 2) return <AnalyticsDashboard evaluations={evaluations} />;
+        const placeholders = { 3: 'ML Bias Predictor', 4: 'NLP Analyzer', 5: 'Fairness Framework', 6: 'XAI Explainability' };
         return <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module {activeModule} — {placeholders[activeModule]} (coming soon)</p></div>;
       };
 
