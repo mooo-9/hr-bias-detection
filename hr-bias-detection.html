@@ -483,7 +483,206 @@
         </div>
       );
     }
-    // ── PLACEHOLDER: MODULE COMPONENTS will be inserted here (Tasks 5–10) ──
+    // ══════════════════════════════════════════════
+    // MODULE 1 — EVALUATION SUBMISSION FORM
+    // ══════════════════════════════════════════════
+
+    function StarRating({ value, onChange }) {
+      const [hovered, setHovered] = useState(0);
+      return (
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {[1,2,3,4,5].map(n => (
+            <span key={n}
+              onClick={() => onChange(n)}
+              onMouseEnter={() => setHovered(n)}
+              onMouseLeave={() => setHovered(0)}
+              style={{ fontSize: '28px', cursor: 'pointer',
+                color: n <= (hovered || value) ? '#f59e0b' : '#e2e8f0' }}>★</span>
+          ))}
+        </div>
+      );
+    }
+
+    function EvaluationForm({ evaluations, setEvaluations }) {
+      const [form, setForm] = useState({
+        employeeId:'', department:'Engineering', evaluatorId:'MGR-A', rating:0,
+        feedback:'', gender:'Male', ethnicity:'White', ageGroup:'20-30',
+      });
+      const [result, setResult] = useState(null);
+      const [submitted, setSubmitted] = useState(false);
+
+      const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!form.employeeId.trim() || form.rating === 0 || !form.feedback.trim()) {
+          alert('Please fill in Employee ID, Rating (click stars), and Feedback before submitting.');
+          return;
+        }
+        const id = `E${String(evaluations.length + 1).padStart(3,'0')}`;
+        const raw = { ...form, id, timestamp: new Date().toISOString().split('T')[0],
+          tenureScore: 0.6, kpiScore: 0.6, peerScore: 0.6 };
+        const processed = processRecord(raw);
+        setEvaluations(prev => [...prev, processed]);
+        setResult(processed);
+        setSubmitted(true);
+      };
+
+      const reset = () => {
+        setSubmitted(false);
+        setResult(null);
+        setForm({ employeeId:'', department:'Engineering', evaluatorId:'MGR-A', rating:0,
+                   feedback:'', gender:'Male', ethnicity:'White', ageGroup:'20-30' });
+      };
+
+      const inputStyle = { width:'100%', padding:'8px 12px', borderRadius:'6px',
+        border:'1px solid #e2e8f0', fontSize:'14px', color:'#1e293b', background:'#fff',
+        boxSizing:'border-box' };
+      const labelStyle = { display:'block', marginBottom:'6px', fontSize:'13px',
+        fontWeight:600, color:'#374151' };
+
+      if (submitted && result) {
+        return (
+          <div style={{ padding:'24px', maxWidth:'900px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'24px' }}>
+              <h2 style={{ margin:0, fontSize:'20px', color:'#1e293b' }}>📝 Evaluation Analysis Results</h2>
+              <button onClick={reset} style={{ marginLeft:'auto', background:'#f1f5f9', color:'#374151',
+                border:'none', borderRadius:'6px', padding:'7px 14px', cursor:'pointer', fontSize:'13px' }}>
+                ← Submit Another
+              </button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
+              <Card title="Bias Risk Score">
+                <BiasGauge score={result.biasScore} />
+                <div style={{ marginTop:'12px' }}>
+                  {result.biasFlags.length === 0
+                    ? <p style={{ color:'#22c55e', fontSize:'14px', margin:0 }}>✅ No bias indicators detected.</p>
+                    : <div>
+                        <p style={{ fontSize:'13px', fontWeight:600, color:'#374151', marginTop:0 }}>Flagged phrases:</p>
+                        {result.biasFlags.map((f, i) => (
+                          <div key={i} style={{ background: f.color, border:`1px solid ${f.borderColor}`,
+                            borderRadius:'6px', padding:'8px 12px', marginBottom:'8px', fontSize:'13px' }}>
+                            <strong>"{f.phrase}"</strong> — {f.label}<br />
+                            <span style={{ color:'#374151' }}>{f.explanation}</span>
+                          </div>
+                        ))}
+                      </div>
+                  }
+                </div>
+              </Card>
+              <Card title="ML Prediction">
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'12px', marginBottom:'12px' }}>
+                  {[['Actual Rating', result.rating, '#3b82f6'],
+                    ['Predicted', result.predictedRating, '#8b5cf6'],
+                    ['Deviation', (result.ratingDeviation > 0 ? '+' : '') + result.ratingDeviation,
+                      result.flagged ? '#ef4444' : '#22c55e']
+                  ].map(([l, v, c]) => (
+                    <div key={l} style={{ textAlign:'center', background:'#f8fafc', borderRadius:'8px', padding:'12px' }}>
+                      <div style={{ fontSize:'22px', fontWeight:700, color:c }}>{v}</div>
+                      <div style={{ fontSize:'11px', color:'#64748b', marginTop:'4px' }}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+                {result.flagged && <div style={{ background:'#fee2e2', borderRadius:'6px', padding:'10px 12px',
+                  fontSize:'13px', color:'#991b1b' }}>
+                  ⚠️ This evaluation is flagged — the actual rating deviates significantly from the KPI-based prediction.
+                </div>}
+                <div style={{ marginTop:'12px', fontSize:'13px', color:'#64748b' }}>
+                  Sentiment score: <strong style={{ color: result.sentiment >= 0 ? '#22c55e' : '#ef4444' }}>
+                    {result.sentiment >= 0 ? '+' : ''}{result.sentiment.toFixed(2)}
+                  </strong>
+                </div>
+              </Card>
+            </div>
+            <Card title="Feedback Analysis">
+              <p style={{ fontSize:'13px', color:'#64748b', marginTop:0 }}>
+                Hover over highlighted text to see bias explanations.
+              </p>
+              <div style={{ background:'#f8fafc', borderRadius:'8px', padding:'16px', fontSize:'14px',
+                lineHeight:'1.8', color:'#1e293b' }}>
+                <HighlightedFeedback text={result.feedback} flags={result.biasFlags} />
+              </div>
+              {result.biasFlags.length > 0 && (
+                <div style={{ marginTop:'16px' }}>
+                  <p style={{ fontSize:'13px', fontWeight:600, color:'#374151', margin:'0 0 8px' }}>
+                    Suggested rewrite:
+                  </p>
+                  <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px',
+                    padding:'14px', fontSize:'14px', lineHeight:'1.8', color:'#1e293b' }}>
+                    {generateDebias(result.feedback)}
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ padding:'24px', maxWidth:'700px' }}>
+          <h2 style={{ margin:'0 0 20px', fontSize:'20px', color:'#1e293b' }}>📝 Submit Performance Evaluation</h2>
+          <Card>
+            <form onSubmit={handleSubmit}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+                <div>
+                  <label style={labelStyle}>Employee ID</label>
+                  <input style={inputStyle} placeholder="e.g. EMP-051" value={form.employeeId}
+                    onChange={e => set('employeeId', e.target.value)} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Evaluator</label>
+                  <select style={inputStyle} value={form.evaluatorId} onChange={e => set('evaluatorId', e.target.value)}>
+                    {EVALUATORS.map(ev => <option key={ev}>{ev}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Department</label>
+                  <select style={inputStyle} value={form.department} onChange={e => set('department', e.target.value)}>
+                    {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Gender</label>
+                  <select style={inputStyle} value={form.gender} onChange={e => set('gender', e.target.value)}>
+                    {GENDERS.map(g => <option key={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Ethnicity</label>
+                  <select style={inputStyle} value={form.ethnicity} onChange={e => set('ethnicity', e.target.value)}>
+                    {ETHNICITIES.map(et => <option key={et}>{et}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Age Group</label>
+                  <select style={inputStyle} value={form.ageGroup} onChange={e => set('ageGroup', e.target.value)}>
+                    {AGE_GROUPS.map(a => <option key={a}>{a}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginTop:'16px' }}>
+                <label style={labelStyle}>Performance Rating</label>
+                <StarRating value={form.rating} onChange={v => set('rating', v)} />
+              </div>
+              <div style={{ marginTop:'16px' }}>
+                <label style={labelStyle}>Written Feedback</label>
+                <textarea style={{ ...inputStyle, height:'120px', resize:'vertical' }}
+                  placeholder="Write the performance evaluation here..."
+                  value={form.feedback} onChange={e => set('feedback', e.target.value)} />
+              </div>
+              <button type="submit" style={{ marginTop:'16px', background:'#14b8a6', color:'#fff',
+                border:'none', borderRadius:'8px', padding:'10px 24px', fontSize:'14px',
+                fontWeight:600, cursor:'pointer', width:'100%' }}>
+                Analyse & Submit Evaluation
+              </button>
+            </form>
+          </Card>
+        </div>
+      );
+    }
+
+    // ── END MODULE 1 ──
+    // ── MODULES 2–6 WILL BE ADDED BELOW ──
 
     // ══════════════════════════════════════════════
     // APP SHELL
@@ -621,8 +820,10 @@
 
       // renderModule returns only the active module — replaced with real components in Tasks 5–10
       const renderModule = () => {
+        const props = { evaluations, setEvaluations, setActiveModule, selectedEvaluationId,
+          setSelectedEvaluationId, navigateToXAI };
+        if (activeModule === 1) return <EvaluationForm evaluations={evaluations} setEvaluations={setEvaluations} />;
         const placeholders = {
-          1: 'Evaluation Form',
           2: 'Analytics Dashboard',
           3: 'ML Bias Predictor',
           4: 'NLP Analyzer',
