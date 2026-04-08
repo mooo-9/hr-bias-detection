@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HR Bias Detection System</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: { 950: '#0f172a', 900: '#0f1f3d', 800: '#1e293b' }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Babel Standalone (JSX transform) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Chart.js 4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .tooltip-container { position: relative; display: inline; }
+    .tooltip-container .tooltip-text { visibility: hidden; background: #1e293b; color: #fff;
+      text-align: left; padding: 6px 10px; border-radius: 6px; font-size: 12px; max-width: 240px;
+      position: absolute; z-index: 100; bottom: 125%; left: 50%; transform: translateX(-50%);
+      white-space: normal; line-height: 1.5; }
+    .tooltip-container:hover .tooltip-text { visibility: visible; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ── PLACEHOLDER: CONSTANTS will be inserted here (Task 2) ──
+    // ── PLACEHOLDER: SEED_DATA will be inserted here (Task 3) ──
+    // ── PLACEHOLDER: UTILITY FUNCTIONS will be inserted here (Task 4) ──
+    // ── PLACEHOLDER: SHARED COMPONENTS will be inserted here (Task 4) ──
+    // ── PLACEHOLDER: MODULE COMPONENTS will be inserted here (Tasks 5–10) ──
+
+    // ══════════════════════════════════════════════
+    // APP SHELL
+    // ══════════════════════════════════════════════
+
+    const NAV_ITEMS = [
+      { id: 1, icon: '📝', label: 'Evaluation Form' },
+      { id: 2, icon: '📊', label: 'Analytics Dashboard' },
+      { id: 3, icon: '🤖', label: 'ML Bias Predictor' },
+      { id: 4, icon: '🔍', label: 'NLP Analyzer' },
+      { id: 5, icon: '📋', label: 'Fairness Framework' },
+      { id: 6, icon: '📈', label: 'XAI Explainability' },
+    ];
+
+    function TopNav({ evaluations, onGenerateReport }) {
+      const alertCount = evaluations ? evaluations.filter(e => e.flagged).length : 0;
+      return (
+        <div style={{ background: '#0f172a', height: '56px', display: 'flex', alignItems: 'center',
+          padding: '0 24px', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+          borderBottom: '1px solid #1e293b' }}>
+          <span style={{ color: '#14b8a6', fontWeight: 700, fontSize: '16px', letterSpacing: '-0.3px' }}>
+            ⚖ HR Bias Detection System
+          </span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ color: '#94a3b8', fontSize: '13px' }}>HR Manager</span>
+            {alertCount > 0 && (
+              <span style={{ background: '#ef4444', color: '#fff', borderRadius: '12px',
+                padding: '2px 9px', fontSize: '12px', fontWeight: 600 }}>
+                {alertCount} Alerts
+              </span>
+            )}
+            <button
+              onClick={onGenerateReport}
+              style={{ background: '#14b8a6', color: '#fff', border: 'none', borderRadius: '6px',
+                padding: '6px 14px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
+              Generate Report
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function Sidebar({ activeModule, setActiveModule }) {
+      return (
+        <div style={{ background: '#0f172a', width: '240px', minHeight: '100vh', paddingTop: '72px',
+          position: 'fixed', left: 0, top: 0, borderRight: '1px solid #1e293b' }}>
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveModule(item.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                padding: '10px 16px', border: 'none', cursor: 'pointer', textAlign: 'left',
+                background: activeModule === item.id ? '#14b8a620' : 'transparent',
+                color: activeModule === item.id ? '#14b8a6' : '#94a3b8',
+                borderRight: activeModule === item.id ? '3px solid #14b8a6' : '3px solid transparent',
+                fontSize: '14px', transition: 'all 0.15s',
+              }}>
+              <span>{item.icon}</span>
+              <span style={{ fontWeight: activeModule === item.id ? 600 : 400 }}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    function App() {
+      const [activeModule, setActiveModule] = useState(1);
+      const [evaluations, setEvaluations] = useState([]);
+      const [selectedEvaluationId, setSelectedEvaluationId] = useState(null);
+
+      function generateReport() {
+        const flagged = evaluations.filter(e => e.flagged);
+        const metrics = typeof computeFairnessMetrics !== 'undefined' ? computeFairnessMetrics(evaluations) : {};
+        const date = new Date().toISOString().split('T')[0];
+        const lines = [
+          '═══════════════════════════════════════════════════',
+          '   HR BIAS DETECTION SYSTEM — FAIRNESS REPORT',
+          `   Generated: ${date}`,
+          '═══════════════════════════════════════════════════',
+          '',
+          `Total Evaluations Analysed: ${evaluations.length}`,
+          `Flagged for Bias: ${flagged.length} (${evaluations.length ? Math.round(flagged.length / evaluations.length * 100) : 0}%)`,
+          '',
+          '── FAIRNESS METRICS ──────────────────────────────',
+          `Demographic Parity Difference : ${metrics.demographicParityDiff?.toFixed(2) ?? 'N/A'}  (threshold < 0.20)`,
+          `Disparate Impact Ratio        : ${metrics.disparateImpactRatio?.toFixed(2) ?? 'N/A'}  (threshold >= 0.80)`,
+          `Equal Opportunity Difference  : ${metrics.equalOpportunityDiff?.toFixed(2) ?? 'N/A'}  (threshold < 0.10)`,
+          '',
+          '── EVALUATOR SUMMARY ────────────────────────────',
+          ...['MGR-A', 'MGR-B', 'MGR-C'].map(mgr => {
+            const evals = evaluations.filter(e => e.evaluatorId === mgr);
+            const avgRating = evals.length ? (evals.reduce((s, e) => s + e.rating, 0) / evals.length).toFixed(2) : 'N/A';
+            const flaggedCount = evals.filter(e => e.flagged).length;
+            return `${mgr}: ${evals.length} evaluations, avg rating ${avgRating}, ${flaggedCount} flagged`;
+          }),
+          '',
+          '── DEPARTMENT SUMMARY ───────────────────────────',
+          ...['Engineering', 'Sales', 'Marketing', 'Finance', 'Operations'].map(dept => {
+            const evals = evaluations.filter(e => e.department === dept);
+            const avg = evals.length ? (evals.reduce((s, e) => s + e.rating, 0) / evals.length).toFixed(2) : 'N/A';
+            return `${dept}: avg rating ${avg} (${evals.length} evaluations)`;
+          }),
+          '',
+          '── FLAGGED EVALUATIONS ──────────────────────────',
+          ...flagged.map(e =>
+            `${e.id} | ${e.evaluatorId} | ${e.department} | Rating: ${e.rating} | Predicted: ${e.predictedRating} | Dev: ${e.ratingDeviation > 0 ? '+' : ''}${e.ratingDeviation}`
+          ),
+          '',
+          '═══════════════════════════════════════════════════',
+        ];
+        const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `bias-report-${date}.txt`;
+        a.click();
+      }
+
+      const navigateToXAI = (id) => {
+        setSelectedEvaluationId(id);
+        setActiveModule(6);
+      };
+
+      const moduleProps = { evaluations, setEvaluations, setActiveModule, selectedEvaluationId,
+        setSelectedEvaluationId, navigateToXAI };
+
+      const modules = {
+        1: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 1 — Evaluation Form (coming soon)</p></div>,
+        2: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 2 — Analytics Dashboard (coming soon)</p></div>,
+        3: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 3 — ML Bias Predictor (coming soon)</p></div>,
+        4: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 4 — NLP Analyzer (coming soon)</p></div>,
+        5: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 5 — Fairness Framework (coming soon)</p></div>,
+        6: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 6 — XAI Explainability (coming soon)</p></div>,
+      };
+
+      return (
+        <div>
+          <TopNav evaluations={evaluations} onGenerateReport={generateReport} />
+          <Sidebar activeModule={activeModule} setActiveModule={setActiveModule} />
+          <div style={{ marginLeft: '240px', paddingTop: '56px', minHeight: '100vh' }}>
+            {modules[activeModule]}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
