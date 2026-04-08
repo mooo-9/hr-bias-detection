@@ -153,7 +153,123 @@
     const ETHNICITIES = ['White', 'Black', 'Hispanic', 'Asian', 'Middle Eastern'];
     const AGE_GROUPS  = ['20-30', '31-40', '41-50', '51+'];
     const EVALUATORS  = ['MGR-A', 'MGR-B', 'MGR-C'];
-    // ── PLACEHOLDER: SEED_DATA will be inserted here (Task 3) ──
+    // ══════════════════════════════════════════════
+    // SEED DATA — 50 evaluation records (raw, no computed fields)
+    // MGR-A: lenient (rates +0.8–2.2 above predicted)
+    // MGR-B: harsh   (rates −1.0–2.6 below predicted)
+    // MGR-C: gender-biased (female employees rated 1.5–2 below predicted; male 0.1–1.3 above)
+    // ══════════════════════════════════════════════
+
+    const SEED_DATA = [
+      // ── MGR-A (lenient) — 17 records ──
+      { id:'E001', employeeId:'EMP-001', department:'Engineering', evaluatorId:'MGR-A', rating:4, gender:'Male',       ethnicity:'White',          ageGroup:'31-40', timestamp:'2025-12-01', tenureScore:0.50, kpiScore:0.40, peerScore:0.50,
+        feedback:"Consistently delivered high-quality engineering solutions this quarter. Led the backend infrastructure upgrade with precision and met all milestones ahead of schedule." },
+      { id:'E002', employeeId:'EMP-002', department:'Sales',       evaluatorId:'MGR-A', rating:5, gender:'Female',     ethnicity:'Black',          ageGroup:'20-30', timestamp:'2025-12-02', tenureScore:0.45, kpiScore:0.50, peerScore:0.55,
+        feedback:"Exceeded sales targets by 22% and demonstrated outstanding client relationship management. A strong asset to the team." },
+      { id:'E003', employeeId:'EMP-003', department:'Marketing',   evaluatorId:'MGR-A', rating:4, gender:'Male',       ethnicity:'Hispanic',       ageGroup:'41-50', timestamp:'2025-12-03', tenureScore:0.60, kpiScore:0.50, peerScore:0.60,
+        feedback:"Drove the Q3 marketing campaign from concept to execution. Achieved measurable brand awareness improvements and managed stakeholder expectations well." },
+      { id:'E004', employeeId:'EMP-004', department:'Finance',     evaluatorId:'MGR-A', rating:5, gender:'Female',     ethnicity:'Asian',          ageGroup:'31-40', timestamp:'2025-12-04', tenureScore:0.40, kpiScore:0.45, peerScore:0.50,
+        feedback:"Produced thorough financial analysis reports that supported key investment decisions. Reliable, accurate, and always meets deadlines." },
+      { id:'E005', employeeId:'EMP-005', department:'Operations',  evaluatorId:'MGR-A', rating:4, gender:'Non-binary', ethnicity:'White',          ageGroup:'20-30', timestamp:'2025-12-05', tenureScore:0.55, kpiScore:0.50, peerScore:0.60,
+        feedback:"Managed operational workflows efficiently and introduced process improvements that reduced cycle time by 15%. A proactive and reliable contributor." },
+      { id:'E006', employeeId:'EMP-006', department:'Engineering', evaluatorId:'MGR-A', rating:5, gender:'Male',       ethnicity:'Middle Eastern', ageGroup:'31-40', timestamp:'2025-12-06', tenureScore:0.50, kpiScore:0.45, peerScore:0.55,
+        feedback:"Architected a scalable microservices solution and mentored two junior engineers. Delivered all sprint commitments with high code quality." },
+      { id:'E007', employeeId:'EMP-007', department:'Sales',       evaluatorId:'MGR-A', rating:4, gender:'Female',     ethnicity:'Hispanic',       ageGroup:'41-50', timestamp:'2025-12-07', tenureScore:0.60, kpiScore:0.55, peerScore:0.60,
+        feedback:"Achieved quota in three out of four quarters and built a strong pipeline. Consistently professional in client interactions." },
+      { id:'E008', employeeId:'EMP-008', department:'Marketing',   evaluatorId:'MGR-A', rating:5, gender:'Male',       ethnicity:'Black',          ageGroup:'20-30', timestamp:'2025-12-08', tenureScore:0.45, kpiScore:0.40, peerScore:0.50,
+        feedback:"Developed creative campaigns that increased engagement metrics by 30%. Collaborates well and always delivers on time." },
+      { id:'E009', employeeId:'EMP-009', department:'Finance',     evaluatorId:'MGR-A', rating:4, gender:'Female',     ethnicity:'White',          ageGroup:'51+',   timestamp:'2025-12-09', tenureScore:0.70, kpiScore:0.60, peerScore:0.65,
+        feedback:"Provides accurate budget forecasting and regulatory compliance oversight. A steady, dependable contributor to the finance team." },
+      { id:'E010', employeeId:'EMP-010', department:'Operations',  evaluatorId:'MGR-A', rating:5, gender:'Male',       ethnicity:'Asian',          ageGroup:'41-50', timestamp:'2025-12-10', tenureScore:0.50, kpiScore:0.50, peerScore:0.55,
+        feedback:"Optimised the supply chain process and reduced overhead costs by 12%. Demonstrates strong operational judgment." },
+      { id:'E011', employeeId:'EMP-011', department:'Engineering', evaluatorId:'MGR-A', rating:4, gender:'Female',     ethnicity:'Black',          ageGroup:'31-40', timestamp:'2025-12-11', tenureScore:0.55, kpiScore:0.45, peerScore:0.50,
+        feedback:"Built and deployed three key features in the product roadmap. Communicates clearly with cross-functional teams and delivers to specification." },
+      { id:'E012', employeeId:'EMP-012', department:'Sales',       evaluatorId:'MGR-A', rating:5, gender:'Male',       ethnicity:'White',          ageGroup:'20-30', timestamp:'2025-12-12', tenureScore:0.40, kpiScore:0.40, peerScore:0.45,
+        feedback:"Closed several enterprise-level deals this quarter and maintained an excellent win rate. Strong negotiation and relationship skills." },
+      { id:'E013', employeeId:'EMP-013', department:'Marketing',   evaluatorId:'MGR-A', rating:4, gender:'Female',     ethnicity:'Asian',          ageGroup:'41-50', timestamp:'2025-12-13', tenureScore:0.60, kpiScore:0.50, peerScore:0.60,
+        feedback:"Created a comprehensive content strategy and improved conversion rates by 18%. Brings creative thinking and analytical rigour to every project." },
+      { id:'E014', employeeId:'EMP-014', department:'Finance',     evaluatorId:'MGR-A', rating:5, gender:'Male',       ethnicity:'Hispanic',       ageGroup:'31-40', timestamp:'2025-12-14', tenureScore:0.50, kpiScore:0.50, peerScore:0.55,
+        feedback:"Led the quarterly audit process without issues and produced clear, actionable financial reports for senior leadership." },
+      { id:'E015', employeeId:'EMP-015', department:'Operations',  evaluatorId:'MGR-A', rating:4, gender:'Female',     ethnicity:'Middle Eastern', ageGroup:'20-30', timestamp:'2025-12-15', tenureScore:0.45, kpiScore:0.45, peerScore:0.50,
+        feedback:"Introduced a new vendor management framework that improved procurement efficiency. Takes initiative and follows through on commitments." },
+      { id:'E016', employeeId:'EMP-016', department:'Engineering', evaluatorId:'MGR-A', rating:4, gender:'Male',       ethnicity:'Asian',          ageGroup:'51+',   timestamp:'2025-12-16', tenureScore:0.65, kpiScore:0.55, peerScore:0.65,
+        feedback:"Designed robust system architecture for the new platform and coordinated well with external partners. Technical leadership is a clear strength." },
+      { id:'E017', employeeId:'EMP-017', department:'Sales',       evaluatorId:'MGR-A', rating:5, gender:'Female',     ethnicity:'White',          ageGroup:'31-40', timestamp:'2025-12-17', tenureScore:0.50, kpiScore:0.45, peerScore:0.55,
+        feedback:"Surpassed Q4 targets and onboarded three new enterprise accounts. Excellent communication skills and strong closing ability." },
+
+      // ── MGR-B (harsh) — 16 records ──
+      { id:'E018', employeeId:'EMP-018', department:'Engineering', evaluatorId:'MGR-B', rating:2, gender:'Male',       ethnicity:'White',          ageGroup:'41-50', timestamp:'2025-12-18', tenureScore:0.60, kpiScore:0.65, peerScore:0.70,
+        feedback:"Performance fell short of expectations this quarter. Several deliverables were delayed and code review feedback was not incorporated consistently." },
+      { id:'E019', employeeId:'EMP-019', department:'Sales',       evaluatorId:'MGR-B', rating:2, gender:'Female',     ethnicity:'Black',          ageGroup:'31-40', timestamp:'2025-12-19', tenureScore:0.55, kpiScore:0.60, peerScore:0.65,
+        feedback:"Missed revenue targets for the second consecutive quarter. Needs significant improvement in prospecting and follow-through." },
+      { id:'E020', employeeId:'EMP-020', department:'Marketing',   evaluatorId:'MGR-B', rating:2, gender:'Male',       ethnicity:'Hispanic',       ageGroup:'20-30', timestamp:'2025-12-20', tenureScore:0.50, kpiScore:0.55, peerScore:0.60,
+        feedback:"Campaign results were below benchmarks. Needs to take more ownership and produce higher-quality work independently." },
+      { id:'E021', employeeId:'EMP-021', department:'Finance',     evaluatorId:'MGR-B', rating:2, gender:'Female',     ethnicity:'Asian',          ageGroup:'41-50', timestamp:'2025-12-21', tenureScore:0.65, kpiScore:0.60, peerScore:0.65,
+        feedback:"Financial reports contained errors that required correction. Attention to detail must improve significantly." },
+      { id:'E022', employeeId:'EMP-022', department:'Operations',  evaluatorId:'MGR-B', rating:1, gender:'Male',       ethnicity:'Middle Eastern', ageGroup:'31-40', timestamp:'2025-12-22', tenureScore:0.60, kpiScore:0.65, peerScore:0.70,
+        feedback:"Operational delays caused downstream issues for the team. Needs to improve prioritisation and communication." },
+      { id:'E023', employeeId:'EMP-023', department:'Marketing',   evaluatorId:'MGR-B', rating:3, gender:'Non-binary', ethnicity:'Middle Eastern', ageGroup:'20-30', timestamp:'2025-12-23', tenureScore:0.55, kpiScore:0.50, peerScore:0.60,
+        feedback:"Showed some improvement but still struggles to meet deadlines consistently. More focus and organisation needed." },
+      { id:'E024', employeeId:'EMP-024', department:'Engineering', evaluatorId:'MGR-B', rating:2, gender:'Male',       ethnicity:'Black',          ageGroup:'51+',   timestamp:'2025-12-24', tenureScore:0.70, kpiScore:0.65, peerScore:0.75,
+        feedback:"Several architecture decisions required reverting. Code quality has been inconsistent and team feedback has been negative." },
+      { id:'E025', employeeId:'EMP-025', department:'Sales',       evaluatorId:'MGR-B', rating:2, gender:'Female',     ethnicity:'Hispanic',       ageGroup:'31-40', timestamp:'2025-12-25', tenureScore:0.60, kpiScore:0.60, peerScore:0.65,
+        feedback:"Failed to meet quarterly targets and showed little improvement in pipeline management. Performance is concerning." },
+      { id:'E026', employeeId:'EMP-026', department:'Finance',     evaluatorId:'MGR-B', rating:2, gender:'Male',       ethnicity:'Asian',          ageGroup:'20-30', timestamp:'2025-12-26', tenureScore:0.55, kpiScore:0.60, peerScore:0.60,
+        feedback:"Budget variance reports were frequently late. Needs to develop stronger analytical skills and time management." },
+      { id:'E027', employeeId:'EMP-027', department:'Operations',  evaluatorId:'MGR-B', rating:2, gender:'Female',     ethnicity:'White',          ageGroup:'41-50', timestamp:'2025-12-27', tenureScore:0.60, kpiScore:0.55, peerScore:0.65,
+        feedback:"Supply chain disruptions were not managed proactively. Reactive rather than strategic in approach." },
+      { id:'E028', employeeId:'EMP-028', department:'Marketing',   evaluatorId:'MGR-B', rating:3, gender:'Male',       ethnicity:'Middle Eastern', ageGroup:'31-40', timestamp:'2025-12-28', tenureScore:0.65, kpiScore:0.65, peerScore:0.70,
+        feedback:"Results were mixed this period. Some campaigns performed adequately but strategic thinking needs further development." },
+      { id:'E029', employeeId:'EMP-029', department:'Engineering', evaluatorId:'MGR-B', rating:2, gender:'Female',     ethnicity:'Black',          ageGroup:'20-30', timestamp:'2025-12-29', tenureScore:0.55, kpiScore:0.60, peerScore:0.65,
+        feedback:"Feature delivery was behind schedule. Technical issues were not escalated in time and resulted in production delays." },
+      { id:'E030', employeeId:'EMP-030', department:'Finance',     evaluatorId:'MGR-B', rating:1, gender:'Male',       ethnicity:'Hispanic',       ageGroup:'51+',   timestamp:'2025-12-30', tenureScore:0.65, kpiScore:0.65, peerScore:0.70,
+        feedback:"Compliance issues were identified during the audit. Immediate improvement in accuracy and process adherence is required." },
+      { id:'E031', employeeId:'EMP-031', department:'Operations',  evaluatorId:'MGR-B', rating:2, gender:'Female',     ethnicity:'Asian',          ageGroup:'31-40', timestamp:'2025-12-31', tenureScore:0.50, kpiScore:0.55, peerScore:0.60,
+        feedback:"Operational KPIs were missed three months running. Performance needs immediate and sustained improvement." },
+      { id:'E032', employeeId:'EMP-032', department:'Sales',       evaluatorId:'MGR-B', rating:2, gender:'Male',       ethnicity:'White',          ageGroup:'41-50', timestamp:'2026-01-01', tenureScore:0.60, kpiScore:0.60, peerScore:0.65,
+        feedback:"Pipeline activity was low and conversion rates remained poor. Needs to revamp approach to prospecting and client engagement." },
+      { id:'E033', employeeId:'EMP-033', department:'Marketing',   evaluatorId:'MGR-B', rating:3, gender:'Female',     ethnicity:'Hispanic',       ageGroup:'20-30', timestamp:'2026-01-02', tenureScore:0.55, kpiScore:0.50, peerScore:0.55,
+        feedback:"Performance was adequate in some areas but inconsistent overall. Should focus on delivering more reliable results." },
+
+      // ── MGR-C (gender-biased) — 17 records ──
+      // Female employees (9): good KPIs, low ratings, personality-focused feedback
+      { id:'E034', employeeId:'EMP-034', department:'Engineering', evaluatorId:'MGR-C', rating:2, gender:'Female',     ethnicity:'White',          ageGroup:'31-40', timestamp:'2026-01-03', tenureScore:0.70, kpiScore:0.72, peerScore:0.75,
+        feedback:"Sarah can be quite emotional in team meetings, which sometimes creates tension. Her attitude occasionally affects the team dynamic and she needs to work on building better relationships with her colleagues." },
+      { id:'E035', employeeId:'EMP-035', department:'Sales',       evaluatorId:'MGR-C', rating:3, gender:'Female',     ethnicity:'Black',          ageGroup:'41-50', timestamp:'2026-01-04', tenureScore:0.68, kpiScore:0.70, peerScore:0.72,
+        feedback:"While warm and pleasant to work with, lacks the assertiveness sometimes needed in this role. Occasionally has difficulty taking initiative on complex tasks." },
+      { id:'E036', employeeId:'EMP-036', department:'Marketing',   evaluatorId:'MGR-C', rating:2, gender:'Female',     ethnicity:'Hispanic',       ageGroup:'20-30', timestamp:'2026-01-05', tenureScore:0.65, kpiScore:0.68, peerScore:0.70,
+        feedback:"Maria is likeable and a good team player, but can be bossy with junior staff at times. Needs to work on her management style and communication approach." },
+      { id:'E037', employeeId:'EMP-037', department:'Finance',     evaluatorId:'MGR-C', rating:3, gender:'Female',     ethnicity:'Asian',          ageGroup:'31-40', timestamp:'2026-01-06', tenureScore:0.72, kpiScore:0.70, peerScore:0.75,
+        feedback:"Amy is diligent but sometimes struggles with confidence when presenting her analysis to stakeholders. Her attitude can come across as abrasive in high-pressure situations." },
+      { id:'E038', employeeId:'EMP-038', department:'Operations',  evaluatorId:'MGR-C', rating:2, gender:'Female',     ethnicity:'White',          ageGroup:'41-50', timestamp:'2026-01-07', tenureScore:0.68, kpiScore:0.65, peerScore:0.70,
+        feedback:"Lisa sometimes appears disengaged and her attitude in recent reviews has been inconsistent. Needs to work on her professional presence and be more assertive." },
+      { id:'E039', employeeId:'EMP-039', department:'Engineering', evaluatorId:'MGR-C', rating:2, gender:'Female',     ethnicity:'Middle Eastern', ageGroup:'20-30', timestamp:'2026-01-08', tenureScore:0.70, kpiScore:0.72, peerScore:0.72,
+        feedback:"Fatima is nurturing with her team but occasionally comes across as overly emotional when facing criticism. Needs to develop thicker skin in senior leadership discussions." },
+      { id:'E040', employeeId:'EMP-040', department:'Sales',       evaluatorId:'MGR-C', rating:3, gender:'Female',     ethnicity:'Black',          ageGroup:'31-40', timestamp:'2026-01-09', tenureScore:0.65, kpiScore:0.68, peerScore:0.70,
+        feedback:"A warm and collaborative personality, but needs to work on being more assertive. Occasionally too passive in cross-functional meetings." },
+      { id:'E041', employeeId:'EMP-041', department:'Finance',     evaluatorId:'MGR-C', rating:2, gender:'Female',     ethnicity:'Hispanic',       ageGroup:'51+',   timestamp:'2026-01-10', tenureScore:0.70, kpiScore:0.70, peerScore:0.72,
+        feedback:"Rosa has a pleasant manner but can be difficult to work with when under pressure. Her attitude and interpersonal style need improvement to meet the expectations of the role." },
+      { id:'E042', employeeId:'EMP-042', department:'Operations',  evaluatorId:'MGR-C', rating:3, gender:'Female',     ethnicity:'Asian',          ageGroup:'41-50', timestamp:'2026-01-11', tenureScore:0.68, kpiScore:0.68, peerScore:0.70,
+        feedback:"Wei is a team player with a likeable personality but sometimes lacks the drive needed to take ownership of key deliverables." },
+
+      // Male employees (8): same KPIs, high ratings, skill-focused feedback
+      { id:'E043', employeeId:'EMP-043', department:'Engineering', evaluatorId:'MGR-C', rating:5, gender:'Male',       ethnicity:'White',          ageGroup:'31-40', timestamp:'2026-01-12', tenureScore:0.70, kpiScore:0.72, peerScore:0.75,
+        feedback:"James delivered the entire Q3 engineering roadmap on schedule and led the team through a complex system migration successfully. Exceptional technical leadership and execution." },
+      { id:'E044', employeeId:'EMP-044', department:'Sales',       evaluatorId:'MGR-C', rating:4, gender:'Male',       ethnicity:'Black',          ageGroup:'41-50', timestamp:'2026-01-13', tenureScore:0.68, kpiScore:0.70, peerScore:0.72,
+        feedback:"Achieved 110% of his sales target and built a strong client portfolio. Led key negotiations that resulted in three major contract renewals this quarter." },
+      { id:'E045', employeeId:'EMP-045', department:'Marketing',   evaluatorId:'MGR-C', rating:5, gender:'Male',       ethnicity:'Hispanic',       ageGroup:'20-30', timestamp:'2026-01-14', tenureScore:0.65, kpiScore:0.68, peerScore:0.70,
+        feedback:"Developed a high-impact marketing strategy that increased qualified leads by 35%. Analytical, creative, and consistently delivers above expectations." },
+      { id:'E046', employeeId:'EMP-046', department:'Finance',     evaluatorId:'MGR-C', rating:4, gender:'Male',       ethnicity:'Asian',          ageGroup:'31-40', timestamp:'2026-01-15', tenureScore:0.72, kpiScore:0.70, peerScore:0.75,
+        feedback:"Produced accurate financial models that directly informed the board's investment decisions. Demonstrates strong technical depth and strategic thinking throughout the review period." },
+      { id:'E047', employeeId:'EMP-047', department:'Operations',  evaluatorId:'MGR-C', rating:5, gender:'Male',       ethnicity:'White',          ageGroup:'41-50', timestamp:'2026-01-16', tenureScore:0.68, kpiScore:0.65, peerScore:0.70,
+        feedback:"Built a new inventory management system that reduced warehouse costs by 18%. Drives operational excellence and leads by example consistently." },
+      { id:'E048', employeeId:'EMP-048', department:'Engineering', evaluatorId:'MGR-C', rating:4, gender:'Male',       ethnicity:'Middle Eastern', ageGroup:'20-30', timestamp:'2026-01-17', tenureScore:0.70, kpiScore:0.72, peerScore:0.72,
+        feedback:"Architected and deployed the new cloud infrastructure, reducing downtime by 40%. A key technical contributor with strong analytical skills and clear communication." },
+      { id:'E049', employeeId:'EMP-049', department:'Finance',     evaluatorId:'MGR-C', rating:5, gender:'Male',       ethnicity:'Black',          ageGroup:'31-40', timestamp:'2026-01-18', tenureScore:0.65, kpiScore:0.68, peerScore:0.70,
+        feedback:"Led the finance team through a regulatory compliance overhaul and delivered a clean audit. Demonstrates leadership, precision, and strategic foresight." },
+      { id:'E050', employeeId:'EMP-050', department:'Operations',  evaluatorId:'MGR-C', rating:4, gender:'Male',       ethnicity:'Hispanic',       ageGroup:'51+',   timestamp:'2026-01-19', tenureScore:0.68, kpiScore:0.68, peerScore:0.70,
+        feedback:"Optimised the logistics network and delivered cost savings of 14%. A results-driven professional who consistently exceeds operational targets quarter after quarter." },
+    ];
     // ── PLACEHOLDER: UTILITY FUNCTIONS will be inserted here (Task 4) ──
     // ── PLACEHOLDER: SHARED COMPONENTS will be inserted here (Task 4) ──
     // ── PLACEHOLDER: MODULE COMPONENTS will be inserted here (Tasks 5–10) ──
