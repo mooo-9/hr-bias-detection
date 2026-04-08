@@ -894,6 +894,670 @@
     // ── MODULES 2–6 WILL BE ADDED BELOW ──
 
     // ══════════════════════════════════════════════
+    // MODULE 3 — ML BIAS PREDICTOR
+    // ══════════════════════════════════════════════
+
+    function MLPredictor({ evaluations, navigateToXAI }) {
+      const [loaded, setLoaded] = React.useState(false);
+      const [sortKey, setSortKey] = React.useState('ratingDeviation');
+      const [sortDir, setSortDir] = React.useState('desc');
+      const [filterEval, setFilterEval] = React.useState('All');
+      const [filterDept, setFilterDept] = React.useState('All');
+      const [flaggedOnly, setFlaggedOnly] = React.useState(false);
+
+      const handleLoad = () => setLoaded(true);
+
+      const toggleSort = (key) => {
+        if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setSortKey(key); setSortDir('desc'); }
+      };
+
+      const filtered = useMemo(() => {
+        if (!loaded) return [];
+        let rows = [...evaluations];
+        if (filterEval !== 'All') rows = rows.filter(e => e.evaluatorId === filterEval);
+        if (filterDept !== 'All') rows = rows.filter(e => e.department === filterDept);
+        if (flaggedOnly) rows = rows.filter(e => e.flagged);
+        rows.sort((a, b) => {
+          const av = a[sortKey], bv = b[sortKey];
+          const diff = typeof av === 'number' ? av - bv : String(av).localeCompare(String(bv));
+          return sortDir === 'asc' ? diff : -diff;
+        });
+        return rows;
+      }, [loaded, evaluations, filterEval, filterDept, flaggedOnly, sortKey, sortDir]);
+
+      const flaggedAll = evaluations.filter(e => e.flagged);
+      const biasEval = useMemo(() => {
+        if (!flaggedAll.length) return 'N/A';
+        const counts = {};
+        flaggedAll.forEach(e => counts[e.evaluatorId] = (counts[e.evaluatorId]||0) + 1);
+        return Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
+      }, [flaggedAll]);
+      const biasDept = useMemo(() => {
+        if (!flaggedAll.length) return 'N/A';
+        const counts = {};
+        flaggedAll.forEach(e => counts[e.department] = (counts[e.department]||0) + 1);
+        return Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
+      }, [flaggedAll]);
+
+      const thStyle = (k) => ({
+        padding:'10px 12px', textAlign:'left', fontSize:'12px', fontWeight:600,
+        color: sortKey === k ? '#14b8a6' : '#64748b', cursor:'pointer',
+        background:'#f8fafc', borderBottom:'2px solid #e2e8f0', whiteSpace:'nowrap',
+        userSelect:'none',
+      });
+      const tdStyle = { padding:'10px 12px', fontSize:'13px', color:'#1e293b',
+        borderBottom:'1px solid #f1f5f9', verticalAlign:'middle' };
+
+      return (
+        <div style={{ padding:'24px' }}>
+          <h2 style={{ margin:'0 0 20px', fontSize:'20px', color:'#1e293b' }}>🤖 ML Bias Predictor</h2>
+          {!loaded ? (
+            <Card>
+              <p style={{ color:'#64748b', fontSize:'14px', marginTop:0 }}>
+                Simulate loading an evaluation dataset CSV. The ML model will predict expected ratings
+                from objective KPI signals and flag deviations indicating potential bias.
+              </p>
+              <button onClick={handleLoad}
+                style={{ background:'#14b8a6', color:'#fff', border:'none', borderRadius:'8px',
+                  padding:'10px 24px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+                📂 Load Evaluation Dataset (Simulated CSV Upload)
+              </button>
+            </Card>
+          ) : (
+            <>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'16px', marginBottom:'20px' }}>
+                {[
+                  ['Total Records', evaluations.length, '#3b82f6'],
+                  ['Flagged for Bias', flaggedAll.length, '#ef4444'],
+                  ['Most Biased Evaluator', biasEval, '#f59e0b'],
+                  ['Most Biased Department', biasDept, '#8b5cf6'],
+                ].map(([l,v,c]) => (
+                  <Card key={l} style={{ margin:0, textAlign:'center' }}>
+                    <div style={{ fontSize:'22px', fontWeight:700, color:c }}>{v}</div>
+                    <div style={{ fontSize:'12px', color:'#64748b', marginTop:'4px' }}>{l}</div>
+                  </Card>
+                ))}
+              </div>
+              <Card>
+                <div style={{ display:'flex', gap:'12px', flexWrap:'wrap', alignItems:'center' }}>
+                  <div>
+                    <span style={{ fontSize:'12px', color:'#64748b', marginRight:'6px' }}>Evaluator:</span>
+                    <select style={{ padding:'5px 8px', borderRadius:'5px', border:'1px solid #e2e8f0',
+                      fontSize:'13px' }} value={filterEval} onChange={e => setFilterEval(e.target.value)}>
+                      <option>All</option>{EVALUATORS.map(e => <option key={e}>{e}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <span style={{ fontSize:'12px', color:'#64748b', marginRight:'6px' }}>Department:</span>
+                    <select style={{ padding:'5px 8px', borderRadius:'5px', border:'1px solid #e2e8f0',
+                      fontSize:'13px' }} value={filterDept} onChange={e => setFilterDept(e.target.value)}>
+                      <option>All</option>{DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <label style={{ display:'flex', alignItems:'center', gap:'6px', fontSize:'13px', cursor:'pointer' }}>
+                    <input type="checkbox" checked={flaggedOnly} onChange={e => setFlaggedOnly(e.target.checked)} />
+                    Flagged only
+                  </label>
+                  <span style={{ marginLeft:'auto', fontSize:'13px', color:'#94a3b8' }}>
+                    {filtered.length} records shown
+                  </span>
+                </div>
+              </Card>
+              <Card>
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                    <thead>
+                      <tr>
+                        {[['id','ID'],['employeeId','Employee'],['department','Dept'],
+                          ['evaluatorId','Evaluator'],['rating','Actual'],
+                          ['predictedRating','Predicted'],['ratingDeviation','Deviation'],
+                          ['flagged','Flag']].map(([k,l]) => (
+                          <th key={k} style={thStyle(k)} onClick={() => toggleSort(k)}>
+                            {l}{sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                          </th>
+                        ))}
+                        <th style={{ ...thStyle('_'), cursor:'default' }}>Explain</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(e => (
+                        <tr key={e.id} style={{ background: e.flagged ? '#fff7f7' : 'transparent' }}>
+                          <td style={tdStyle}><strong>{e.id}</strong></td>
+                          <td style={tdStyle}>{e.employeeId}</td>
+                          <td style={tdStyle}>{e.department}</td>
+                          <td style={tdStyle}>{e.evaluatorId}</td>
+                          <td style={{ ...tdStyle, textAlign:'center' }}>
+                            <strong style={{ color:'#3b82f6' }}>{e.rating}</strong>
+                          </td>
+                          <td style={{ ...tdStyle, textAlign:'center' }}>
+                            <strong style={{ color:'#8b5cf6' }}>{e.predictedRating}</strong>
+                          </td>
+                          <td style={{ ...tdStyle, textAlign:'center' }}>
+                            <strong style={{ color: e.ratingDeviation > 0 ? '#22c55e' : '#ef4444' }}>
+                              {e.ratingDeviation > 0 ? '+' : ''}{e.ratingDeviation}
+                            </strong>
+                          </td>
+                          <td style={{ ...tdStyle, textAlign:'center' }}>
+                            {e.flagged
+                              ? <span style={{ background:'#fee2e2', color:'#991b1b', borderRadius:'10px',
+                                  padding:'2px 8px', fontSize:'12px', fontWeight:600 }}>⚠️ Flagged</span>
+                              : <span style={{ background:'#dcfce7', color:'#166534', borderRadius:'10px',
+                                  padding:'2px 8px', fontSize:'12px', fontWeight:600 }}>✅ Clear</span>
+                            }
+                          </td>
+                          <td style={{ ...tdStyle, textAlign:'center' }}>
+                            {e.flagged && (
+                              <button onClick={() => navigateToXAI(e.id)}
+                                style={{ background:'#f1f5f9', color:'#14b8a6', border:'1px solid #e2e8f0',
+                                  borderRadius:'5px', padding:'4px 10px', fontSize:'12px', cursor:'pointer',
+                                  fontWeight:600 }}>
+                                Explain →
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════
+    // MODULE 4 — NLP FEEDBACK ANALYZER
+    // ══════════════════════════════════════════════
+
+    function NLPAnalyzer() {
+      const [text, setText] = React.useState('');
+      const [result, setResult] = React.useState(null);
+
+      const SAMPLE = `Sarah is emotional and can be bossy with junior staff at times. While she is warm and likeable, she sometimes lacks the confidence needed for senior presentations. Recently her attitude has affected team morale.`;
+
+      const analyze = () => {
+        if (!text.trim()) return;
+        setResult(analyzeNLP(text));
+      };
+
+      const toneColor = { Constructive: '#22c55e', Critical: '#ef4444', Vague: '#f59e0b' };
+
+      const catData = result ? {
+        labels: Object.keys(result.categories),
+        datasets: [{
+          label: 'Keywords matched',
+          backgroundColor: ['#22c55ecc','#ef4444cc','#3b82f6cc','#8b5cf6cc'],
+          data: Object.values(result.categories),
+        }],
+      } : null;
+
+      const biasTypeColor = {
+        'Demographic / Cognitive': '#ef4444',
+        'Cognitive': '#f59e0b',
+        'None': '#22c55e',
+      };
+
+      return (
+        <div style={{ padding:'24px', maxWidth:'900px' }}>
+          <h2 style={{ margin:'0 0 20px', fontSize:'20px', color:'#1e293b' }}>🔍 NLP Feedback Analyzer</h2>
+          <Card>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
+              <label style={{ fontSize:'13px', fontWeight:600, color:'#374151' }}>Paste performance review text:</label>
+              <button onClick={() => setText(SAMPLE)}
+                style={{ background:'#f1f5f9', color:'#14b8a6', border:'1px solid #e2e8f0',
+                  borderRadius:'5px', padding:'4px 10px', fontSize:'12px', cursor:'pointer' }}>
+                Load Sample Text
+              </button>
+            </div>
+            <textarea
+              style={{ width:'100%', height:'120px', padding:'10px', borderRadius:'6px',
+                border:'1px solid #e2e8f0', fontSize:'14px', resize:'vertical', boxSizing:'border-box' }}
+              placeholder="Paste any performance review text here..."
+              value={text} onChange={e => { setText(e.target.value); setResult(null); }}
+            />
+            <button onClick={analyze}
+              style={{ marginTop:'12px', background:'#14b8a6', color:'#fff', border:'none',
+                borderRadius:'8px', padding:'9px 22px', fontSize:'14px', fontWeight:600, cursor:'pointer' }}>
+              Analyse for Bias
+            </button>
+          </Card>
+
+          {result && (
+            <>
+              <Card title="Highlighted Feedback">
+                <p style={{ fontSize:'12px', color:'#94a3b8', marginTop:0 }}>
+                  Hover over coloured phrases to see bias explanations.
+                </p>
+                <div style={{ background:'#f8fafc', borderRadius:'8px', padding:'16px', fontSize:'14px',
+                  lineHeight:'1.9', color:'#1e293b' }}>
+                  <HighlightedFeedback text={text} flags={result.biasFlags} />
+                </div>
+                <div style={{ display:'flex', gap:'12px', flexWrap:'wrap', marginTop:'12px' }}>
+                  {Object.entries(BIAS_DICT).map(([k,v]) => (
+                    <span key={k} style={{ background:v.color, border:`1px solid ${v.borderColor}`,
+                      borderRadius:'4px', padding:'2px 8px', fontSize:'12px' }}>{v.label}</span>
+                  ))}
+                </div>
+              </Card>
+
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', marginBottom:'20px' }}>
+                <Card style={{ margin:0, textAlign:'center' }}>
+                  <div style={{ fontSize:'12px', color:'#64748b', marginBottom:'8px' }}>Bias Type Detected</div>
+                  <span style={{ background: biasTypeColor[result.biasType] + '22',
+                    color: biasTypeColor[result.biasType], borderRadius:'8px',
+                    padding:'6px 14px', fontSize:'14px', fontWeight:700 }}>
+                    {result.biasType}
+                  </span>
+                </Card>
+                <Card style={{ margin:0, textAlign:'center' }}>
+                  <div style={{ fontSize:'12px', color:'#64748b', marginBottom:'8px' }}>Tone</div>
+                  <span style={{ background: toneColor[result.tone] + '22',
+                    color: toneColor[result.tone], borderRadius:'8px',
+                    padding:'6px 14px', fontSize:'14px', fontWeight:700 }}>
+                    {result.tone}
+                  </span>
+                </Card>
+                <Card style={{ margin:0, textAlign:'center' }}>
+                  <div style={{ fontSize:'12px', color:'#64748b', marginBottom:'8px' }}>Bias Score</div>
+                  <span style={{ fontSize:'28px', fontWeight:700,
+                    color: result.biasScore <= 30 ? '#22c55e' : result.biasScore <= 60 ? '#f59e0b' : '#ef4444' }}>
+                    {result.biasScore}<span style={{ fontSize:'14px', color:'#94a3b8' }}>/100</span>
+                  </span>
+                </Card>
+              </div>
+
+              {result.biasFlags.length > 0 && (
+                <Card title="Problematic Phrases">
+                  {result.biasFlags.map((f, i) => (
+                    <div key={i} style={{ display:'flex', gap:'12px', padding:'10px',
+                      background: f.color, borderRadius:'8px', marginBottom:'8px',
+                      border:`1px solid ${f.borderColor}` }}>
+                      <span style={{ fontWeight:700, minWidth:'100px', fontSize:'13px' }}>"{f.phrase}"</span>
+                      <div style={{ fontSize:'13px' }}>
+                        <strong>{f.label}</strong> — {f.explanation}
+                      </div>
+                    </div>
+                  ))}
+                </Card>
+              )}
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
+                <Card title="Feedback Category Breakdown">
+                  <ChartCanvas chartData={catData} chartType="bar"
+                    chartOptions={{ scales: { y: { beginAtZero:true, ticks:{ stepSize:1 } } },
+                      plugins: { legend:{ display:false } } }} height={200} />
+                </Card>
+                <Card title="Debiased Rewrite Suggestion">
+                  <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px',
+                    padding:'14px', fontSize:'14px', lineHeight:'1.8', color:'#1e293b', marginBottom:'10px' }}>
+                    {generateDebias(text)}
+                  </div>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(generateDebias(text))}
+                    style={{ background:'#f1f5f9', color:'#374151', border:'1px solid #e2e8f0',
+                      borderRadius:'5px', padding:'5px 12px', fontSize:'12px', cursor:'pointer' }}>
+                    📋 Copy Rewrite
+                  </button>
+                </Card>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════
+    // MODULE 5 — FAIRNESS-AWARE FRAMEWORK PANEL
+    // ══════════════════════════════════════════════
+
+    const CONSTRAINT_DEFS = [
+      { key:'dp',  label:'Demographic Parity Constraint',
+        desc:'Forces equal average predicted outcomes across gender groups, penalising models that produce systematically different predictions for different demographic groups.' },
+      { key:'eo',  label:'Equalized Odds',
+        desc:'Requires equal true positive and false positive rates across groups. Prevents the model from being simultaneously accurate for one group and inaccurate for another.' },
+      { key:'if_', label:'Individual Fairness',
+        desc:'Similar individuals should receive similar predictions regardless of their demographic group. Reduces reliance on group-level attributes in decision-making.' },
+      { key:'cal', label:'Calibration',
+        desc:'Predicted probabilities should reflect true outcome frequencies equally across groups. Prevents systematic over- or under-confidence for specific demographics.' },
+    ];
+
+    function FairnessFramework({ evaluations }) {
+      const [reweighted, setReweighted] = React.useState(false);
+      const [constraints, setConstraints] = React.useState({ dp:false, eo:false, if_:false, cal:false });
+      const [thresholds, setThresholds] = React.useState({ Male:0.5, Female:0.5, 'Non-binary':0.5 });
+      const [auditResolution, setAuditResolution] = React.useState({});
+
+      const toggleConstraint = (key) => setConstraints(c => ({ ...c, [key]: !c[key] }));
+      const activeCount = Object.values(constraints).filter(Boolean).length;
+      const modelAccuracy = (84 + activeCount * 1.5 - (activeCount > 2 ? 2 : 0)).toFixed(1);
+
+      const genderCounts = useMemo(() => {
+        const actual = {};
+        GENDERS.forEach(g => { actual[g] = evaluations.filter(e => e.gender === g).length; });
+        const target = Math.round(evaluations.length / 3);
+        const balanced = { Male: target, Female: target, 'Non-binary': target };
+        return { actual, balanced };
+      }, [evaluations]);
+
+      const genderDistData = (data) => ({
+        labels: GENDERS,
+        datasets: [{
+          label: 'Count',
+          backgroundColor: ['#3b82f6cc','#ec4899cc','#8b5cf6cc'],
+          data: GENDERS.map(g => data[g] || 0),
+        }],
+      });
+
+      const outcomeRates = useMemo(() => {
+        return Object.fromEntries(
+          GENDERS.map(g => {
+            const arr = evaluations.filter(e => e.gender === g);
+            const baseRate = arr.filter(e => e.rating >= 4).length / (arr.length || 1);
+            const t = thresholds[g];
+            const adjusted = Math.max(0, Math.min(1, baseRate + (0.5 - t) * 0.8));
+            return [g, adjusted];
+          })
+        );
+      }, [evaluations, thresholds]);
+
+      const flagged = useMemo(() => evaluations.filter(e => e.flagged).slice(0,15), [evaluations]);
+
+      const severityLabel = (e) => {
+        const abs = Math.abs(e.ratingDeviation);
+        if (abs >= 2.0) return { text:'High',   color:'#ef4444', bg:'#fee2e2' };
+        if (abs >= 1.0) return { text:'Medium', color:'#f59e0b', bg:'#fef9c3' };
+        return             { text:'Low',    color:'#22c55e', bg:'#dcfce7' };
+      };
+
+      const pipelineStepStyle = (active) => ({
+        background: '#fff', borderRadius:'10px', padding:'20px',
+        border: `2px solid ${active ? '#14b8a6' : '#e2e8f0'}`,
+        flex: 1,
+      });
+      const arrowStyle = { display:'flex', alignItems:'center', fontSize:'24px', color:'#14b8a6', padding:'0 8px' };
+
+      return (
+        <div style={{ padding:'24px' }}>
+          <h2 style={{ margin:'0 0 20px', fontSize:'20px', color:'#1e293b' }}>📋 Fairness-Aware Framework</h2>
+
+          <Card title="Bias Mitigation Pipeline">
+            <div style={{ display:'flex', gap:'0', alignItems:'stretch' }}>
+
+              <div style={pipelineStepStyle(reweighted)}>
+                <div style={{ fontSize:'13px', fontWeight:700, color:'#14b8a6', marginBottom:'8px',
+                  textTransform:'uppercase', letterSpacing:'0.5px' }}>① Pre-processing</div>
+                <div style={{ marginBottom:'12px' }}>
+                  <ChartCanvas
+                    chartData={genderDistData(reweighted ? genderCounts.balanced : genderCounts.actual)}
+                    chartType="bar"
+                    chartOptions={{ scales: { y: { beginAtZero:true } },
+                      plugins: { legend:{ display:false } } }}
+                    height={140} />
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontSize:'12px', color:'#64748b' }}>Data Reweighting:</span>
+                  <button onClick={() => setReweighted(r => !r)}
+                    style={{ background: reweighted ? '#14b8a6' : '#f1f5f9',
+                      color: reweighted ? '#fff' : '#374151',
+                      border:'none', borderRadius:'6px', padding:'5px 12px',
+                      fontSize:'12px', cursor:'pointer', fontWeight:600 }}>
+                    {reweighted ? '✅ Applied' : 'Apply'}
+                  </button>
+                </div>
+              </div>
+
+              <div style={arrowStyle}>→</div>
+
+              <div style={pipelineStepStyle(activeCount > 0)}>
+                <div style={{ fontSize:'13px', fontWeight:700, color:'#14b8a6', marginBottom:'8px',
+                  textTransform:'uppercase', letterSpacing:'0.5px' }}>② In-processing</div>
+                {CONSTRAINT_DEFS.map(c => (
+                  <div key={c.key} style={{ display:'flex', alignItems:'flex-start', gap:'8px',
+                    marginBottom:'10px', padding:'8px', background:'#f8fafc', borderRadius:'6px' }}>
+                    <input type="checkbox" checked={constraints[c.key]}
+                      onChange={() => toggleConstraint(c.key)}
+                      style={{ marginTop:'2px', cursor:'pointer', accentColor:'#14b8a6' }} />
+                    <div>
+                      <div style={{ fontSize:'13px', fontWeight:600, color:'#374151' }}>{c.label}</div>
+                      <div style={{ fontSize:'11px', color:'#64748b', lineHeight:'1.5' }}>{c.desc}</div>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ background:'#f0fdf4', borderRadius:'6px', padding:'8px 12px',
+                  fontSize:'13px', marginTop:'8px' }}>
+                  Simulated model accuracy: <strong style={{ color:'#22c55e' }}>{modelAccuracy}%</strong>
+                </div>
+              </div>
+
+              <div style={arrowStyle}>→</div>
+
+              <div style={pipelineStepStyle(Object.values(thresholds).some(t => t !== 0.5))}>
+                <div style={{ fontSize:'13px', fontWeight:700, color:'#14b8a6', marginBottom:'8px',
+                  textTransform:'uppercase', letterSpacing:'0.5px' }}>③ Post-processing</div>
+                <p style={{ fontSize:'12px', color:'#64748b', marginTop:0 }}>
+                  Adjust decision thresholds per demographic group. Higher threshold = fewer high-rating outcomes.
+                </p>
+                {GENDERS.map(g => (
+                  <div key={g} style={{ marginBottom:'14px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:'13px',
+                      color:'#374151', marginBottom:'4px' }}>
+                      <span style={{ fontWeight:600 }}>{g}</span>
+                      <span style={{ color:'#14b8a6' }}>
+                        Threshold: {thresholds[g].toFixed(2)} →
+                        Outcome rate: {(outcomeRates[g] * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <input type="range" min="0.3" max="0.7" step="0.05"
+                      value={thresholds[g]}
+                      onChange={e => setThresholds(t => ({ ...t, [g]: parseFloat(e.target.value) }))}
+                      style={{ width:'100%', accentColor:'#14b8a6' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Audit Log — Flagged Evaluations">
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
+                <thead>
+                  <tr style={{ background:'#f8fafc' }}>
+                    {['ID','Evaluator','Dept','Timestamp','Bias Type','Severity','Resolution'].map(h => (
+                      <th key={h} style={{ padding:'9px 12px', textAlign:'left', fontSize:'12px',
+                        fontWeight:600, color:'#64748b', borderBottom:'2px solid #e2e8f0' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {flagged.map(e => {
+                    const sev = severityLabel(e);
+                    const resKey = e.id;
+                    return (
+                      <tr key={e.id} style={{ borderBottom:'1px solid #f1f5f9' }}>
+                        <td style={{ padding:'9px 12px' }}><strong>{e.id}</strong></td>
+                        <td style={{ padding:'9px 12px' }}>{e.evaluatorId}</td>
+                        <td style={{ padding:'9px 12px' }}>{e.department}</td>
+                        <td style={{ padding:'9px 12px', color:'#64748b' }}>{e.timestamp}</td>
+                        <td style={{ padding:'9px 12px' }}>
+                          <span style={{ fontSize:'12px', color: e.biasType === 'None' ? '#22c55e' : '#ef4444' }}>
+                            {e.biasType !== 'None' ? e.biasType : (Math.abs(e.ratingDeviation) >= 1.5 ? 'Systemic' : 'Statistical')}
+                          </span>
+                        </td>
+                        <td style={{ padding:'9px 12px' }}>
+                          <span style={{ background:sev.bg, color:sev.color, borderRadius:'10px',
+                            padding:'2px 8px', fontSize:'12px', fontWeight:600 }}>{sev.text}</span>
+                        </td>
+                        <td style={{ padding:'9px 12px' }}>
+                          <select
+                            value={auditResolution[resKey] || 'Pending'}
+                            onChange={e2 => setAuditResolution(r => ({ ...r, [resKey]: e2.target.value }))}
+                            style={{ padding:'4px 8px', borderRadius:'5px', border:'1px solid #e2e8f0',
+                              fontSize:'12px', background:'#fff' }}>
+                            <option>Pending</option>
+                            <option>Under Review</option>
+                            <option>Resolved</option>
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════
+    // MODULE 6 — XAI EXPLAINABILITY VIEW
+    // ══════════════════════════════════════════════
+
+    function XAIView({ evaluations, selectedEvaluationId, setSelectedEvaluationId }) {
+      const flagged = useMemo(() => evaluations.filter(e => e.flagged), [evaluations]);
+      const [chosenId, setChosenId] = React.useState(null);
+
+      useEffect(() => {
+        if (selectedEvaluationId) setChosenId(selectedEvaluationId);
+        else if (flagged.length > 0 && !chosenId) setChosenId(flagged[0].id);
+      }, [selectedEvaluationId, flagged]);
+
+      const record = useMemo(() =>
+        evaluations.find(e => e.id === chosenId), [evaluations, chosenId]);
+
+      const featureImportance = useMemo(() => {
+        if (!record) return null;
+        const abs = Math.abs(record.ratingDeviation);
+        return [
+          { label:'Rating Deviation',     value: Math.min(1, abs / 2.5),           color:'#ef4444' },
+          { label:'Evaluator Pattern',     value: record.evaluatorId === 'MGR-C' ? 0.88 : record.evaluatorId === 'MGR-A' ? 0.82 : 0.78, color:'#f97316' },
+          { label:'Sentiment Score',       value: Math.min(1, Math.abs(record.sentiment) + 0.2), color:'#f59e0b' },
+          { label:'Keyword Bias Density',  value: Math.min(1, record.biasScore / 100), color:'#8b5cf6' },
+          { label:'Demographic Attribute', value: (record.gender === 'Female' && record.evaluatorId === 'MGR-C') ? 0.75 : 0.3, color:'#ec4899' },
+          { label:'Department Context',    value: 0.25, color:'#3b82f6' },
+        ].sort((a, b) => b.value - a.value);
+      }, [record]);
+
+      const fiChartData = useMemo(() => featureImportance ? ({
+        labels: featureImportance.map(f => f.label),
+        datasets: [{
+          label: 'Importance Score',
+          data: featureImportance.map(f => parseFloat(f.value.toFixed(3))),
+          backgroundColor: featureImportance.map(f => f.color + 'cc'),
+          borderColor:     featureImportance.map(f => f.color),
+          borderWidth: 1,
+        }],
+      }) : null, [featureImportance]);
+
+      const buildExplanation = (r) => {
+        if (!r) return '';
+        const parts = [];
+        if (Math.abs(r.ratingDeviation) > 0.8)
+          parts.push(`The actual rating (${r.rating}) deviates ${r.ratingDeviation > 0 ? 'above' : 'below'} the KPI-predicted rating (${r.predictedRating}) by ${Math.abs(r.ratingDeviation)} points.`);
+        if (r.evaluatorId === 'MGR-C' && r.gender === 'Female')
+          parts.push(`Evaluator MGR-C shows a systematic pattern of rating female employees significantly below their KPI-predicted scores while rating male employees with equivalent KPIs at or above prediction.`);
+        if (r.biasScore > 30)
+          parts.push(`The written feedback contains ${r.biasFlags.length} flagged phrase(s) — including ${r.biasFlags.slice(0,2).map(f => `"${f.phrase}"`).join(' and ')} — which ${r.biasFlags[0]?.label.toLowerCase() || 'indicate potential bias'}.`);
+        if (r.sentiment < -0.1)
+          parts.push(`The feedback sentiment score is negative (${r.sentiment.toFixed(2)}), which is disproportionately low compared to the overall dataset mean for this department.`);
+        return parts.length > 0 ? parts.join(' ') : `This evaluation was flagged because the actual rating deviates significantly (${r.ratingDeviation > 0 ? '+' : ''}${r.ratingDeviation}) from the objective KPI-based prediction (${r.predictedRating}).`;
+      };
+
+      return (
+        <div style={{ padding:'24px', maxWidth:'1000px' }}>
+          <h2 style={{ margin:'0 0 20px', fontSize:'20px', color:'#1e293b' }}>📈 XAI Explainability View</h2>
+
+          {flagged.length === 0 ? (
+            <Card><p style={{ color:'#64748b' }}>No flagged evaluations to explain. Run the ML Predictor first.</p></Card>
+          ) : (
+            <>
+              <Card>
+                <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                  <label style={{ fontSize:'13px', fontWeight:600, color:'#374151' }}>
+                    Select flagged evaluation:
+                  </label>
+                  <select
+                    value={chosenId || ''}
+                    onChange={e => { setChosenId(e.target.value); setSelectedEvaluationId(e.target.value); }}
+                    style={{ padding:'7px 12px', borderRadius:'6px', border:'1px solid #e2e8f0',
+                      fontSize:'14px', minWidth:'200px' }}>
+                    {flagged.map(e => (
+                      <option key={e.id} value={e.id}>
+                        {e.id} — {e.evaluatorId} | {e.department} | Dev: {e.ratingDeviation > 0 ? '+' : ''}{e.ratingDeviation}
+                      </option>
+                    ))}
+                  </select>
+                  {record && (
+                    <span style={{ marginLeft:'auto', fontSize:'13px', color:'#64748b' }}>
+                      Employee: <strong>{record.employeeId}</strong> | Gender: <strong>{record.gender}</strong> | Ethnicity: <strong>{record.ethnicity}</strong>
+                    </span>
+                  )}
+                </div>
+              </Card>
+
+              {record && (
+                <>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
+                    <Card title="Feature Importance">
+                      <ChartCanvas chartData={fiChartData} chartType="bar"
+                        chartOptions={{ indexAxis:'y',
+                          scales: { x: { min:0, max:1, title:{ display:true, text:'Importance Score (0–1)' } } },
+                          plugins: { legend:{ display:false } } }}
+                        height={220} />
+                    </Card>
+                    <Card title="Plain-Language Explanation">
+                      <div style={{ background:'#fff7ed', border:'1px solid #fdba74', borderRadius:'8px',
+                        padding:'16px', fontSize:'14px', lineHeight:'1.8', color:'#1e293b' }}>
+                        {buildExplanation(record)}
+                      </div>
+                      <div style={{ marginTop:'12px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+                        {[['Actual Rating', record.rating, '#3b82f6'],
+                          ['Predicted',     record.predictedRating, '#8b5cf6'],
+                          ['Deviation',     (record.ratingDeviation > 0 ? '+' : '') + record.ratingDeviation,
+                            record.ratingDeviation > 0 ? '#22c55e' : '#ef4444'],
+                          ['Bias Score',    record.biasScore + '/100', record.biasScore > 60 ? '#ef4444' : '#f59e0b'],
+                        ].map(([l,v,c]) => (
+                          <div key={l} style={{ background:'#f8fafc', borderRadius:'6px', padding:'8px 12px' }}>
+                            <div style={{ fontSize:'11px', color:'#94a3b8' }}>{l}</div>
+                            <div style={{ fontSize:'18px', fontWeight:700, color:c }}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+
+                  <Card title="Original vs. Debiased Feedback">
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+                      <div>
+                        <div style={{ fontSize:'12px', fontWeight:600, color:'#ef4444', marginBottom:'8px',
+                          textTransform:'uppercase', letterSpacing:'0.5px' }}>Original</div>
+                        <div style={{ background:'#fff7f7', border:'1px solid #fecaca', borderRadius:'8px',
+                          padding:'14px', fontSize:'14px', lineHeight:'1.8', color:'#1e293b' }}>
+                          <HighlightedFeedback text={record.feedback} flags={record.biasFlags} />
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize:'12px', fontWeight:600, color:'#22c55e', marginBottom:'8px',
+                          textTransform:'uppercase', letterSpacing:'0.5px' }}>Debiased</div>
+                        <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px',
+                          padding:'14px', fontSize:'14px', lineHeight:'1.8', color:'#1e293b' }}>
+                          {generateDebias(record.feedback)}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ══════════════════════════════════════════════
     // APP SHELL
     // ══════════════════════════════════════════════
 
@@ -934,25 +1598,34 @@
       );
     }
 
+    function SidebarButton({ item, activeModule, setActiveModule }) {
+      const [hovered, setHovered] = React.useState(false);
+      const isActive = activeModule === item.id;
+      return (
+        <button
+          onClick={() => setActiveModule(item.id)}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+            padding: '10px 16px', border: 'none', cursor: 'pointer', textAlign: 'left',
+            background: isActive ? '#14b8a620' : hovered ? '#ffffff0f' : 'transparent',
+            color: isActive ? '#14b8a6' : hovered ? '#e2e8f0' : '#94a3b8',
+            borderRight: isActive ? '3px solid #14b8a6' : '3px solid transparent',
+            fontSize: '14px', transition: 'all 0.15s',
+          }}>
+          <span>{item.icon}</span>
+          <span style={{ fontWeight: isActive ? 600 : 400 }}>{item.label}</span>
+        </button>
+      );
+    }
+
     function Sidebar({ activeModule, setActiveModule }) {
       return (
         <div style={{ background: '#0f172a', width: '240px', minHeight: '100vh', paddingTop: '72px',
           position: 'fixed', left: 0, top: 0, borderRight: '1px solid #1e293b' }}>
           {NAV_ITEMS.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setActiveModule(item.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
-                padding: '10px 16px', border: 'none', cursor: 'pointer', textAlign: 'left',
-                background: activeModule === item.id ? '#14b8a620' : 'transparent',
-                color: activeModule === item.id ? '#14b8a6' : '#94a3b8',
-                borderRight: activeModule === item.id ? '3px solid #14b8a6' : '3px solid transparent',
-                fontSize: '14px', transition: 'all 0.15s',
-              }}>
-              <span>{item.icon}</span>
-              <span style={{ fontWeight: activeModule === item.id ? 600 : 400 }}>{item.label}</span>
-            </button>
+            <SidebarButton key={item.id} item={item} activeModule={activeModule} setActiveModule={setActiveModule} />
           ))}
         </div>
       );
@@ -1026,8 +1699,11 @@
       const renderModule = () => {
         if (activeModule === 1) return <EvaluationForm evaluations={evaluations} setEvaluations={setEvaluations} />;
         if (activeModule === 2) return <AnalyticsDashboard evaluations={evaluations} />;
-        const placeholders = { 3: 'ML Bias Predictor', 4: 'NLP Analyzer', 5: 'Fairness Framework', 6: 'XAI Explainability' };
-        return <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module {activeModule} — {placeholders[activeModule]} (coming soon)</p></div>;
+        if (activeModule === 3) return <MLPredictor evaluations={evaluations} navigateToXAI={navigateToXAI} />;
+        if (activeModule === 4) return <NLPAnalyzer />;
+        if (activeModule === 5) return <FairnessFramework evaluations={evaluations} />;
+        if (activeModule === 6) return <XAIView evaluations={evaluations} selectedEvaluationId={selectedEvaluationId} setSelectedEvaluationId={setSelectedEvaluationId} />;
+        return null;
       };
 
       return (
