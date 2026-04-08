@@ -46,7 +46,113 @@
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
 
-    // ── PLACEHOLDER: CONSTANTS will be inserted here (Task 2) ──
+    // ══════════════════════════════════════════════
+    // CONSTANTS
+    // ══════════════════════════════════════════════
+
+    const BIAS_DICT = {
+      gendered_female: {
+        words: ['emotional', 'warm', 'nurturing', 'bossy', 'difficult', 'aggressive',
+                'hysterical', 'moody', 'feisty', 'abrasive', 'shrill', 'passive'],
+        color: '#fecaca',
+        borderColor: '#ef4444',
+        label: 'Gendered language',
+        explanation: 'This term is disproportionately applied to women in performance reviews and reflects implicit gender bias rather than objective performance assessment.',
+      },
+      personality_focus: {
+        words: ['personality', 'attitude', 'likeable', 'pleasant', 'unlikeable',
+                'arrogant', 'humble', 'rude', 'charming', 'abrasive'],
+        color: '#fed7aa',
+        borderColor: '#f97316',
+        label: 'Personality-focused',
+        explanation: 'Performance reviews should assess skills and outcomes, not personality traits. Personality-focused language introduces subjectivity and is often applied unevenly across demographic groups.',
+      },
+      vague_language: {
+        words: ['sometimes', 'could try', 'needs to work on', 'not always',
+                'occasionally', 'tries to', 'should consider', 'lacks', 'at times'],
+        color: '#fef08a',
+        borderColor: '#eab308',
+        label: 'Vague language',
+        explanation: 'Vague feedback is harder to act on and is applied disproportionately to underrepresented groups. Specific, evidence-based feedback is fairer and more actionable.',
+      },
+      recency_bias: {
+        words: ['recently', 'lately', 'last month', 'this quarter', 'just', 'these days'],
+        color: '#e9d5ff',
+        borderColor: '#a855f7',
+        label: 'Recency bias',
+        explanation: 'Overweighting recent events ignores overall performance across the full review period and can unfairly penalise or reward employees based on a single incident.',
+      },
+    };
+
+    const POSITIVE_WORDS = [
+      'excellent', 'outstanding', 'exceptional', 'strong', 'effective', 'successful',
+      'achieved', 'delivered', 'exceeded', 'reliable', 'consistent', 'proactive',
+      'innovative', 'efficient', 'professional', 'dedicated', 'skilled', 'talented',
+      'capable', 'impressive', 'thorough', 'precise', 'strategic', 'collaborative',
+      'supportive', 'accomplished', 'exemplary', 'commendable', 'valuable', 'dependable',
+      'creative', 'analytical', 'motivated', 'resourceful', 'productive', 'responsive',
+      'focused', 'diligent', 'constructive', 'high-quality', 'measurable', 'significant',
+      'improved', 'advanced', 'positive', 'built', 'led', 'drove',
+      'increased', 'reduced', 'surpassed', 'mentored', 'architected', 'deployed',
+    ];
+
+    const NEGATIVE_WORDS = [
+      'poor', 'failed', 'missed', 'below', 'lacking', 'inconsistent', 'delayed',
+      'errors', 'issues', 'problems', 'struggles', 'difficult', 'inadequate',
+      'unsatisfactory', 'weak', 'incomplete', 'declining', 'subpar', 'disappointing',
+      'concerning', 'ineffective', 'disorganized', 'unreliable', 'unprofessional',
+      'negligent', 'careless', 'reactive', 'slow', 'behind', 'deficit', 'shortfall',
+      'gap', 'deficient', 'unclear', 'confused', 'disruptive', 'confrontational',
+      'resistant', 'avoids', 'neglects', 'ignores', 'fails', 'unable', 'unwilling',
+      'lacks', 'low', 'minimal', 'negative', 'tension', 'concern', 'required',
+    ];
+
+    const DEBIAS_MAP = {
+      'emotional':          'expressive under pressure',
+      'warm':               'collaborative and approachable',
+      'nurturing':          'supportive of team members',
+      'bossy':              'direct in communication',
+      'difficult':          'direct with opinions',
+      'aggressive':         'assertive and driven',
+      'hysterical':         'passionate about outcomes',
+      'moody':              'shows variable engagement',
+      'feisty':             'confident and vocal',
+      'abrasive':           'candid in feedback',
+      'shrill':             'vocal',
+      'passive':            'measured in approach',
+      'personality':        'professional style',
+      'attitude':           'professional conduct',
+      'likeable':           'well-regarded by peers',
+      'pleasant':           'approachable and collaborative',
+      'arrogant':           'highly self-assured',
+      'charming':           'engaging communicator',
+      'needs to work on':   'has an opportunity to develop',
+      'could try':          'can focus on strengthening',
+      'not always':         'is developing consistency in',
+      'lacks':              'is building capability in',
+      'sometimes':          'at certain times',
+      'occasionally':       'in some situations',
+    };
+
+    const FEEDBACK_CATEGORIES = {
+      Strengths:    ['delivered', 'achieved', 'exceeded', 'strong', 'excellent', 'outstanding',
+                     'built', 'led', 'drove', 'created', 'improved', 'increased', 'reduced',
+                     'successful', 'effective', 'surpassed', 'accomplished', 'exceptional'],
+      Weaknesses:   ['missed', 'failed', 'poor', 'below', 'needs', 'lacks', 'struggles',
+                     'inconsistent', 'delayed', 'error', 'issues', 'concerns', 'improvement',
+                     'disappointing', 'subpar', 'unable', 'weak'],
+      Leadership:   ['led', 'mentored', 'managed', 'coordinated', 'directed', 'guided',
+                     'supervised', 'influenced', 'inspired', 'team', 'stakeholder', 'architected',
+                     'onboarded', 'coached'],
+      Development:  ['develop', 'improve', 'growth', 'training', 'learning', 'opportunity',
+                     'potential', 'focus', 'career', 'skills', 'work on', 'should consider'],
+    };
+
+    const DEPARTMENTS = ['Engineering', 'Sales', 'Marketing', 'Finance', 'Operations'];
+    const GENDERS     = ['Male', 'Female', 'Non-binary'];
+    const ETHNICITIES = ['White', 'Black', 'Hispanic', 'Asian', 'Middle Eastern'];
+    const AGE_GROUPS  = ['20-30', '31-40', '41-50', '51+'];
+    const EVALUATORS  = ['MGR-A', 'MGR-B', 'MGR-C'];
     // ── PLACEHOLDER: SEED_DATA will be inserted here (Task 3) ──
     // ── PLACEHOLDER: UTILITY FUNCTIONS will be inserted here (Task 4) ──
     // ── PLACEHOLDER: SHARED COMPONENTS will be inserted here (Task 4) ──
