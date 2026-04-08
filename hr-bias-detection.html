@@ -270,8 +270,209 @@
       { id:'E050', employeeId:'EMP-050', department:'Operations',  evaluatorId:'MGR-C', rating:4, gender:'Male',       ethnicity:'Hispanic',       ageGroup:'51+',   timestamp:'2026-01-19', tenureScore:0.68, kpiScore:0.68, peerScore:0.70,
         feedback:"Optimised the logistics network and delivered cost savings of 14%. A results-driven professional who consistently exceeds operational targets quarter after quarter." },
     ];
-    // ── PLACEHOLDER: UTILITY FUNCTIONS will be inserted here (Task 4) ──
-    // ── PLACEHOLDER: SHARED COMPONENTS will be inserted here (Task 4) ──
+    // ══════════════════════════════════════════════
+    // UTILITY FUNCTIONS
+    // ══════════════════════════════════════════════
+
+    function computeSentiment(text) {
+      const lower = text.toLowerCase();
+      const words = lower.match(/\b\w+\b/g) || [];
+      const posCount = words.filter(w => POSITIVE_WORDS.includes(w)).length;
+      const negCount = words.filter(w => NEGATIVE_WORDS.includes(w)).length;
+      if (words.length === 0) return 0;
+      return Math.max(-1, Math.min(1, (posCount - negCount) / words.length * 5));
+    }
+
+    function analyzeNLP(text) {
+      const flags = [];
+      for (const [biasType, config] of Object.entries(BIAS_DICT)) {
+        for (const word of config.words) {
+          const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+          let match;
+          while ((match = regex.exec(text)) !== null) {
+            if (!flags.some(f => f.startIndex === match.index)) {
+              flags.push({
+                phrase: match[0],
+                startIndex: match.index,
+                endIndex: match.index + match[0].length,
+                type: biasType,
+                label: config.label,
+                color: config.color,
+                borderColor: config.borderColor,
+                explanation: config.explanation,
+              });
+            }
+          }
+        }
+      }
+      flags.sort((a, b) => a.startIndex - b.startIndex);
+
+      const counts = {};
+      flags.forEach(f => { counts[f.type] = (counts[f.type] || 0) + 1; });
+      const biasScore = Math.min(100,
+        (counts.gendered_female   || 0) * 20 +
+        (counts.personality_focus || 0) * 15 +
+        (counts.vague_language    || 0) * 10 +
+        (counts.recency_bias      || 0) * 8
+      );
+
+      let biasType = 'None';
+      if (counts.gendered_female > 0 || counts.personality_focus > 0) biasType = 'Demographic / Cognitive';
+      else if (counts.vague_language > 0 || counts.recency_bias > 0) biasType = 'Cognitive';
+
+      const lower = text.toLowerCase();
+      const words = lower.match(/\b\w+\b/g) || [];
+      const posCount = words.filter(w => POSITIVE_WORDS.includes(w)).length;
+      const negCount = words.filter(w => NEGATIVE_WORDS.includes(w)).length;
+      const vagueCount = counts.vague_language || 0;
+      let tone = 'Constructive';
+      if (vagueCount >= 2 && posCount < 3) tone = 'Vague';
+      else if (negCount > posCount) tone = 'Critical';
+
+      const categories = {};
+      for (const [cat, keywords] of Object.entries(FEEDBACK_CATEGORIES)) {
+        categories[cat] = keywords.filter(kw => lower.includes(kw)).length;
+      }
+
+      return { biasScore, biasFlags: flags, biasType, tone, categories, sentiment: computeSentiment(text) };
+    }
+
+    function simulateML(record) {
+      const raw = record.tenureScore * 0.3 + record.kpiScore * 0.5 + record.peerScore * 0.2;
+      const predicted = Math.round((raw * 4 + 1) * 10) / 10;
+      const deviation = Math.round((record.rating - predicted) * 10) / 10;
+      return { predictedRating: predicted, ratingDeviation: deviation, flagged: Math.abs(deviation) > 0.8 };
+    }
+
+    function generateDebias(text) {
+      let result = text;
+      const entries = Object.entries(DEBIAS_MAP).sort((a, b) => b[0].length - a[0].length);
+      for (const [biased, neutral] of entries) {
+        const escaped = biased.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+        result = result.replace(regex, neutral);
+      }
+      return result;
+    }
+
+    function computeFairnessMetrics(evaluations) {
+      const male   = evaluations.filter(e => e.gender === 'Male');
+      const female = evaluations.filter(e => e.gender === 'Female');
+      if (!male.length || !female.length) return {};
+
+      const avg = arr => arr.reduce((s, e) => s + e.rating, 0) / arr.length;
+      const tpr = arr => arr.filter(e => e.rating >= 4).length / arr.length;
+
+      const maleAvg  = avg(male),  femaleAvg  = avg(female);
+      const maleTPR  = tpr(male),  femaleTPR  = tpr(female);
+
+      return {
+        maleAvg, femaleAvg,
+        demographicParityDiff: Math.abs(maleAvg - femaleAvg),
+        disparateImpactRatio:  femaleAvg / maleAvg,
+        equalOpportunityDiff:  Math.abs(maleTPR - femaleTPR),
+        maleTPR, femaleTPR,
+      };
+    }
+
+    function processRecord(raw) {
+      const nlp = analyzeNLP(raw.feedback);
+      const ml  = simulateML(raw);
+      return { ...raw, ...nlp, ...ml };
+    }
+
+    const INITIAL_EVALUATIONS = SEED_DATA.map(processRecord);
+
+    // ══════════════════════════════════════════════
+    // SHARED COMPONENTS
+    // ══════════════════════════════════════════════
+
+    function ChartCanvas({ chartData, chartType, chartOptions = {}, height = 280 }) {
+      const canvasRef = useRef(null);
+      const chartRef  = useRef(null);
+      const dataKey   = JSON.stringify(chartData);
+
+      useEffect(() => {
+        if (!canvasRef.current) return;
+        if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
+        const ctx = canvasRef.current.getContext('2d');
+        chartRef.current = new Chart(ctx, {
+          type: chartType,
+          data: chartData,
+          options: { responsive: true, maintainAspectRatio: false, ...chartOptions },
+        });
+        return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+      }, [dataKey, chartType]);
+
+      return <div style={{ position: 'relative', height: height + 'px' }}><canvas ref={canvasRef} /></div>;
+    }
+
+    function BiasGauge({ score }) {
+      const R = 65, cx = 85, cy = 80, sw = 12;
+      const C = Math.PI * R;
+      const offset = C * (1 - score / 100);
+      const color = score <= 30 ? '#22c55e' : score <= 60 ? '#f59e0b' : '#ef4444';
+      const label = score <= 30 ? 'Low Risk' : score <= 60 ? 'Medium Risk' : 'High Risk';
+      const d = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`;
+      return (
+        <div style={{ textAlign: 'center' }}>
+          <svg width="170" height="95" viewBox="0 0 170 95">
+            <path d={d} fill="none" stroke="#e2e8f0" strokeWidth={sw} />
+            <path d={d} fill="none" stroke={color} strokeWidth={sw}
+              strokeDasharray={C} strokeDashoffset={offset} strokeLinecap="round" />
+            <text x={cx} y={cy - 4} textAnchor="middle" fontSize="22" fontWeight="700" fill={color}>{score}</text>
+            <text x={cx} y={cy + 14} textAnchor="middle" fontSize="11" fill="#64748b">{label}</text>
+          </svg>
+          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '-4px' }}>Bias Risk Score</div>
+        </div>
+      );
+    }
+
+    function HighlightedFeedback({ text, flags }) {
+      if (!text) return null;
+      if (!flags || flags.length === 0) return <span style={{ lineHeight: '1.7' }}>{text}</span>;
+
+      const parts = [];
+      let last = 0;
+      for (const f of flags) {
+        if (f.startIndex > last) parts.push(<span key={`t-${last}`}>{text.slice(last, f.startIndex)}</span>);
+        parts.push(
+          <span key={`f-${f.startIndex}`} className="tooltip-container"
+            style={{ backgroundColor: f.color, borderBottom: `2px solid ${f.borderColor}`,
+              padding: '0 2px', borderRadius: '2px', cursor: 'help' }}>
+            {text.slice(f.startIndex, f.endIndex)}
+            <span className="tooltip-text"><strong>{f.label}</strong><br />{f.explanation}</span>
+          </span>
+        );
+        last = f.endIndex;
+      }
+      if (last < text.length) parts.push(<span key="t-end">{text.slice(last)}</span>);
+      return <span style={{ lineHeight: '1.8' }}>{parts}</span>;
+    }
+
+    function StatusBadge({ status }) {
+      const map = {
+        fair:   { bg: '#dcfce7', color: '#166534', text: '✅ Fair' },
+        risk:   { bg: '#fef9c3', color: '#854d0e', text: '⚠️ At Risk' },
+        biased: { bg: '#fee2e2', color: '#991b1b', text: '❌ Biased' },
+      };
+      const s = map[status] || map.fair;
+      return (
+        <span style={{ background: s.bg, color: s.color, padding: '3px 10px',
+          borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>{s.text}</span>
+      );
+    }
+
+    function Card({ title, children, style = {} }) {
+      return (
+        <div style={{ background: '#fff', borderRadius: '10px', padding: '20px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: '20px', ...style }}>
+          {title && <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 600, color: '#1e293b' }}>{title}</h3>}
+          {children}
+        </div>
+      );
+    }
     // ── PLACEHOLDER: MODULE COMPONENTS will be inserted here (Tasks 5–10) ──
 
     // ══════════════════════════════════════════════
@@ -341,7 +542,7 @@
 
     function App() {
       const [activeModule, setActiveModule] = useState(1);
-      const [evaluations, setEvaluations] = useState([]);
+      const [evaluations, setEvaluations] = useState(typeof INITIAL_EVALUATIONS !== 'undefined' ? INITIAL_EVALUATIONS : []);
       const [selectedEvaluationId, setSelectedEvaluationId] = useState(null);
 
       function generateReport() {
