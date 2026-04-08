@@ -132,6 +132,9 @@
       'lacks':              'is building capability in',
       'sometimes':          'at certain times',
       'occasionally':       'in some situations',
+      'tries to':           'is working toward',
+      'should consider':    'would benefit from',
+      'at times':           'in some situations',
     };
 
     const FEEDBACK_CATEGORIES = {
@@ -291,17 +294,22 @@
           const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
           let match;
           while ((match = regex.exec(text)) !== null) {
-            if (!flags.some(f => f.startIndex === match.index)) {
-              flags.push({
-                phrase: match[0],
-                startIndex: match.index,
-                endIndex: match.index + match[0].length,
-                type: biasType,
-                label: config.label,
-                color: config.color,
-                borderColor: config.borderColor,
-                explanation: config.explanation,
-              });
+            const categoryWeight = { gendered_female: 4, personality_focus: 3, vague_language: 2, recency_bias: 1 };
+            const newFlag = {
+              phrase: match[0],
+              startIndex: match.index,
+              endIndex: match.index + match[0].length,
+              type: biasType,
+              label: config.label,
+              color: config.color,
+              borderColor: config.borderColor,
+              explanation: config.explanation,
+            };
+            const existingIdx = flags.findIndex(f => f.startIndex === match.index);
+            if (existingIdx === -1) {
+              flags.push(newFlag);
+            } else if ((categoryWeight[biasType] || 0) > (categoryWeight[flags[existingIdx].type] || 0)) {
+              flags[existingIdx] = newFlag;
             }
           }
         }
@@ -393,6 +401,7 @@
       const chartRef  = useRef(null);
       const dataKey   = JSON.stringify(chartData);
 
+      const optKey = JSON.stringify(chartOptions);
       useEffect(() => {
         if (!canvasRef.current) return;
         if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
@@ -403,7 +412,7 @@
           options: { responsive: true, maintainAspectRatio: false, ...chartOptions },
         });
         return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-      }, [dataKey, chartType]);
+      }, [dataKey, chartType, optKey]);
 
       return <div style={{ position: 'relative', height: height + 'px' }}><canvas ref={canvasRef} /></div>;
     }
@@ -436,6 +445,7 @@
       const parts = [];
       let last = 0;
       for (const f of flags) {
+        if (f.startIndex < last) continue;  // skip overlapping flag — first flag takes priority
         if (f.startIndex > last) parts.push(<span key={`t-${last}`}>{text.slice(last, f.startIndex)}</span>);
         parts.push(
           <span key={`f-${f.startIndex}`} className="tooltip-container"
