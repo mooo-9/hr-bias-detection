@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HR Bias Detection System</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖</text></svg>" />
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -509,10 +510,12 @@
         employeeId:'', department:'Engineering', evaluatorId:'MGR-A', rating:0,
         feedback:'', gender:'Male', ethnicity:'White', ageGroup:'20-30',
       });
+      const [kpi, setKpi] = useState({ tenureScore: 0.6, kpiScore: 0.6, peerScore: 0.6 });
       const [result, setResult] = useState(null);
       const [submitted, setSubmitted] = useState(false);
 
       const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+      const setK = (k, v) => setKpi(s => ({ ...s, [k]: v }));
 
       const handleSubmit = (e) => {
         e.preventDefault();
@@ -521,8 +524,7 @@
           return;
         }
         const id = `E${String(evaluations.length + 1).padStart(3,'0')}`;
-        const raw = { ...form, id, timestamp: new Date().toISOString().split('T')[0],
-          ...DEFAULT_KPI_SCORES };
+        const raw = { ...form, id, timestamp: new Date().toISOString().split('T')[0], ...kpi };
         const processed = processRecord(raw);
         setEvaluations(prev => [...prev, processed]);
         setResult(processed);
@@ -532,6 +534,7 @@
       const reset = () => {
         setSubmitted(false);
         setResult(null);
+        setKpi({ tenureScore: 0.6, kpiScore: 0.6, peerScore: 0.6 });
         setForm({ employeeId:'', department:'Engineering', evaluatorId:'MGR-A', rating:0,
                    feedback:'', gender:'Male', ethnicity:'White', ageGroup:'20-30' });
       };
@@ -670,6 +673,27 @@
                 <textarea style={{ ...inputStyle, height:'120px', resize:'vertical' }}
                   placeholder="Write the performance evaluation here..."
                   value={form.feedback} onChange={e => set('feedback', e.target.value)} />
+              </div>
+              <div style={{ marginTop:'16px', background:'#f8fafc', borderRadius:'8px', padding:'14px',
+                border:'1px solid #e2e8f0' }}>
+                <div style={{ fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'12px' }}>
+                  📊 Performance Indicators <span style={{ fontWeight:400, color:'#94a3b8', fontSize:'12px' }}>(used for ML bias prediction)</span>
+                </div>
+                {[['tenureScore','Tenure Score'],['kpiScore','KPI Score'],['peerScore','Peer Score']].map(([k,label]) => (
+                  <div key={k} style={{ marginBottom:'10px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px',
+                      color:'#374151', marginBottom:'4px' }}>
+                      <span>{label}</span>
+                      <span style={{ fontWeight:600, color:'#14b8a6' }}>{kpi[k].toFixed(2)}</span>
+                    </div>
+                    <input type="range" min="0" max="1" step="0.05" value={kpi[k]}
+                      onChange={e => setK(k, parseFloat(e.target.value))}
+                      style={{ width:'100%', accentColor:'#14b8a6' }} />
+                  </div>
+                ))}
+                <div style={{ fontSize:'11px', color:'#94a3b8', marginTop:'4px' }}>
+                  Predicted rating = (Tenure×0.3 + KPI×0.5 + Peer×0.2) × 4 + 1
+                </div>
               </div>
               <button type="submit" style={{ marginTop:'16px', background:'#14b8a6', color:'#fff',
                 border:'none', borderRadius:'8px', padding:'10px 24px', fontSize:'14px',
@@ -1273,18 +1297,17 @@
       };
 
       const pipelineStepStyle = (active) => ({
-        background: '#fff', borderRadius:'10px', padding:'20px',
+        background: '#fff', borderRadius:'10px', padding:'16px',
         border: `2px solid ${active ? '#14b8a6' : '#e2e8f0'}`,
-        flex: '0 0 300px', minWidth: '300px',
       });
-      const arrowStyle = { display:'flex', alignItems:'center', fontSize:'24px', color:'#14b8a6', padding:'0 8px' };
+      const arrowStyle = { display:'flex', alignItems:'center', justifyContent:'center', fontSize:'22px', color:'#14b8a6' };
 
       return (
         <div style={{ padding:'24px' }}>
           <h2 style={{ margin:'0 0 20px', fontSize:'20px', color:'#1e293b' }}>📋 Fairness-Aware Framework</h2>
 
           <Card title="Bias Mitigation Pipeline">
-            <div style={{ display:'flex', gap:'0', alignItems:'stretch', overflowX:'auto', paddingBottom:'8px' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 32px 1fr 32px 1fr', alignItems:'start', gap:'0' }}>
 
               <div style={pipelineStepStyle(reweighted)}>
                 <div style={{ fontSize:'13px', fontWeight:700, color:'#14b8a6', marginBottom:'8px',
@@ -1322,7 +1345,8 @@
                       style={{ marginTop:'2px', cursor:'pointer', accentColor:'#14b8a6' }} />
                     <div>
                       <div style={{ fontSize:'13px', fontWeight:600, color:'#374151' }}>{c.label}</div>
-                      <div style={{ fontSize:'11px', color:'#64748b', lineHeight:'1.5' }}>{c.desc}</div>
+                      <div style={{ fontSize:'10px', color:'#64748b', lineHeight:'1.4',
+                        display:'-webkit-box', WebkitLineClamp:'3', WebkitBoxOrient:'vertical', overflow:'hidden' }}>{c.desc}</div>
                     </div>
                   </div>
                 ))}
@@ -1341,14 +1365,11 @@
                   Adjust decision thresholds per demographic group. Higher threshold = fewer high-rating outcomes.
                 </p>
                 {GENDERS.map(g => (
-                  <div key={g} style={{ marginBottom:'14px' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:'13px',
-                      color:'#374151', marginBottom:'4px' }}>
-                      <span style={{ fontWeight:600 }}>{g}</span>
-                      <span style={{ color:'#14b8a6' }}>
-                        Threshold: {thresholds[g].toFixed(2)} →
-                        Outcome rate: {(outcomeRates[g] * 100).toFixed(0)}%
-                      </span>
+                  <div key={g} style={{ marginBottom:'12px' }}>
+                    <div style={{ fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'2px',
+                      whiteSpace:'nowrap' }}>{g}</div>
+                    <div style={{ fontSize:'11px', color:'#14b8a6', marginBottom:'4px' }}>
+                      t={thresholds[g].toFixed(2)} → {(outcomeRates[g] * 100).toFixed(0)}% outcome
                     </div>
                     <input type="range" min="0.3" max="0.7" step="0.05"
                       value={thresholds[g]}
