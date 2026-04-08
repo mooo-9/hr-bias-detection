@@ -123,6 +123,10 @@
       const [selectedEvaluationId, setSelectedEvaluationId] = useState(null);
 
       function generateReport() {
+        if (evaluations.length === 0) {
+          alert('No evaluations to report. Load or submit at least one evaluation first.');
+          return;
+        }
         const flagged = evaluations.filter(e => e.flagged);
         const metrics = typeof computeFairnessMetrics !== 'undefined' ? computeFairnessMetrics(evaluations) : {};
         const date = new Date().toISOString().split('T')[0];
@@ -163,10 +167,14 @@
           '═══════════════════════════════════════════════════',
         ];
         const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
+        a.href = url;
         a.download = `bias-report-${date}.txt`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
       }
 
       const navigateToXAI = (id) => {
@@ -174,16 +182,21 @@
         setActiveModule(6);
       };
 
+      // moduleProps is wired to real module components in Tasks 5–10
       const moduleProps = { evaluations, setEvaluations, setActiveModule, selectedEvaluationId,
         setSelectedEvaluationId, navigateToXAI };
 
-      const modules = {
-        1: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 1 — Evaluation Form (coming soon)</p></div>,
-        2: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 2 — Analytics Dashboard (coming soon)</p></div>,
-        3: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 3 — ML Bias Predictor (coming soon)</p></div>,
-        4: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 4 — NLP Analyzer (coming soon)</p></div>,
-        5: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 5 — Fairness Framework (coming soon)</p></div>,
-        6: <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module 6 — XAI Explainability (coming soon)</p></div>,
+      // renderModule returns only the active module — replaced with real components in Tasks 5–10
+      const renderModule = () => {
+        const placeholders = {
+          1: 'Evaluation Form',
+          2: 'Analytics Dashboard',
+          3: 'ML Bias Predictor',
+          4: 'NLP Analyzer',
+          5: 'Fairness Framework',
+          6: 'XAI Explainability',
+        };
+        return <div style={{ padding: '24px' }}><p style={{ color: '#64748b' }}>Module {activeModule} — {placeholders[activeModule]} (coming soon)</p></div>;
       };
 
       return (
@@ -191,7 +204,7 @@
           <TopNav evaluations={evaluations} onGenerateReport={generateReport} />
           <Sidebar activeModule={activeModule} setActiveModule={setActiveModule} />
           <div style={{ marginLeft: '240px', paddingTop: '56px', minHeight: '100vh' }}>
-            {modules[activeModule]}
+            {renderModule()}
           </div>
         </div>
       );
