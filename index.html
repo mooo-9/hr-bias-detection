@@ -39,6 +39,22 @@
       position: absolute; z-index: 100; bottom: 125%; left: 50%; transform: translateX(-50%);
       white-space: normal; line-height: 1.5; }
     .tooltip-container:hover .tooltip-text { visibility: visible; }
+    /* Phones: sidebar becomes a scrollable tab bar under the top nav, grids stack */
+    @media (max-width: 768px) {
+      .topnav { padding: 0 12px !important; }
+      .topnav-title { font-size: 14px !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .topnav > div { gap: 8px !important; flex-shrink: 0; }
+      .topnav button { padding: 6px 10px !important; }
+      .topnav-role { display: none; }
+      .sidebar { width: 100% !important; min-height: 0 !important; top: 56px !important; padding-top: 0 !important;
+        display: flex; overflow-x: auto; border-right: none !important; border-bottom: 1px solid #1e293b; z-index: 40; scrollbar-width: none; }
+      .sidebar::-webkit-scrollbar { display: none; }
+      .sidebar button { width: auto !important; white-space: nowrap; border-right: none !important; }
+      .main { margin-left: 0 !important; padding-top: 100px !important; }
+      .main [style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
+      .main [style*="repeat(3"], .main [style*="repeat(4"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .main [style*="grid-template-columns"] > * { min-width: 0; }
+    }
   </style>
 </head>
 <body>
@@ -1496,7 +1512,7 @@
           ) : (
             <>
               <Card>
-                <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
                   <label style={{ fontSize:'13px', fontWeight:600, color:'#374151' }}>
                     Select flagged evaluation:
                   </label>
@@ -1594,14 +1610,14 @@
     function TopNav({ evaluations, onGenerateReport }) {
       const alertCount = evaluations ? evaluations.filter(e => e.flagged).length : 0;
       return (
-        <div style={{ background: '#0f172a', height: '56px', display: 'flex', alignItems: 'center',
+        <div className="topnav" style={{ background: '#0f172a', height: '56px', display: 'flex', alignItems: 'center',
           padding: '0 24px', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
           borderBottom: '1px solid #1e293b' }}>
-          <span style={{ color: '#14b8a6', fontWeight: 700, fontSize: '16px', letterSpacing: '-0.3px' }}>
+          <span className="topnav-title" style={{ color: '#14b8a6', fontWeight: 700, fontSize: '16px', letterSpacing: '-0.3px' }}>
             ⚖ HR Bias Detection System
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ color: '#94a3b8', fontSize: '13px' }}>HR Manager</span>
+            <span className="topnav-role" style={{ color: '#94a3b8', fontSize: '13px' }}>HR Manager</span>
             {alertCount > 0 && (
               <span style={{ background: '#ef4444', color: '#fff', borderRadius: '12px',
                 padding: '2px 9px', fontSize: '12px', fontWeight: 600 }}>
@@ -1643,7 +1659,7 @@
 
     function Sidebar({ activeModule, setActiveModule }) {
       return (
-        <div style={{ background: '#0f172a', width: '240px', minHeight: '100vh', paddingTop: '72px',
+        <div className="sidebar" style={{ background: '#0f172a', width: '240px', minHeight: '100vh', paddingTop: '72px',
           position: 'fixed', left: 0, top: 0, borderRight: '1px solid #1e293b' }}>
           {NAV_ITEMS.map(item => (
             <SidebarButton key={item.id} item={item} activeModule={activeModule} setActiveModule={setActiveModule} />
@@ -1731,7 +1747,7 @@
         <div>
           <TopNav evaluations={evaluations} onGenerateReport={generateReport} />
           <Sidebar activeModule={activeModule} setActiveModule={setActiveModule} />
-          <div style={{ marginLeft: '240px', paddingTop: '56px', minHeight: '100vh' }}>
+          <div className="main" style={{ marginLeft: '240px', paddingTop: '56px', minHeight: '100vh' }}>
             {renderModule()}
           </div>
         </div>
