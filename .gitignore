@@ -1,0 +1,10 @@
+# Private thesis material and tool folders: keep out of the public repo
+*.pdf
+*.docx
+*.xlsx
+*.et
+.claude/
+.playwright-mcp/
+.superpowers/
+.vscode/
+docs/

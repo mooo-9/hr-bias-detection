@@ -1,0 +1,530 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_BiasDetection" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.45.0">
+  <bpmn:message id="Msg_TriggerCycle" name="TriggerEvaluationCycle" />
+  <bpmn:message id="Msg_EvalSubmitted" name="EvaluationSubmitted" />
+  <bpmn:message id="Msg_RevisionRequest" name="RevisionRequested" />
+  <bpmn:message id="Msg_EvalResubmitted" name="EvaluationResubmitted" />
+  <bpmn:message id="Msg_ApprovedEmployee" name="EvaluationApprovedEmployee" />
+  <bpmn:message id="Msg_ApprovedManager" name="EvaluationApprovedManager" />
+  <bpmn:collaboration id="Collab_1">
+    <bpmn:participant id="Part_EM" name="Epic 1 – Employee &#38; Manager" processRef="Proc_EM" />
+    <bpmn:participant id="Part_HR" name="Epic 2 – HR &#38; AI Engine" processRef="Proc_HR" />
+    <bpmn:messageFlow id="MF_1" name="Trigger Evaluation Cycle" sourceRef="Task_TriggerCycle" targetRef="SE_Employee" />
+    <bpmn:messageFlow id="MF_2" name="Evaluation Submitted" sourceRef="Task_SubmitEval" targetRef="ICE_EvalReceived" />
+    <bpmn:messageFlow id="MF_3" name="Revision Request" sourceRef="ITE_NotifyManager" targetRef="ICE_RevisionRequest" />
+    <bpmn:messageFlow id="MF_4" name="Revised Evaluation" sourceRef="Task_ResubmitEval" targetRef="ICE_WaitResubmit" />
+    <bpmn:messageFlow id="MF_5" name="Evaluation Approved (Manager)" sourceRef="Task_ApproveEval" targetRef="ICE_ApprovedManager" />
+    <bpmn:messageFlow id="MF_6" name="Evaluation Approved (Employee)" sourceRef="Task_ApproveEval" targetRef="ICE_FinalApproval" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_EM" name="Employee and Manager Evaluation" isExecutable="true">
+    <bpmn:laneSet id="LS_EM">
+      <bpmn:lane id="Lane_Employee" name="Employee">
+        <bpmn:flowNodeRef>SE_Employee</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SubmitSelfEval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_Split</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ICE_FinalApproval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ViewFinalFeedback</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_Employee</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Manager" name="Manager">
+        <bpmn:flowNodeRef>Task_WriteEval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SubmitEval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_AwaitAI</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ICE_RevisionRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ReviseEval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ResubmitEval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ICE_ApprovedManager</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_Manager</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="SE_Employee" name="Evaluation Cycle&#10;Started">
+      <bpmn:outgoing>SF_EM_1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_1" messageRef="Msg_TriggerCycle" />
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_SubmitSelfEval" name="Submit&#10;Self-Evaluation">
+      <bpmn:incoming>SF_EM_1</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:parallelGateway id="GW_Split" name="">
+      <bpmn:incoming>SF_EM_2</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_3</bpmn:outgoing>
+      <bpmn:outgoing>SF_EM_4</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:intermediateCatchEvent id="ICE_FinalApproval" name="Receive Final&#10;Approval">
+      <bpmn:incoming>SF_EM_3</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_5</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_2" messageRef="Msg_ApprovedEmployee" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="Task_ViewFinalFeedback" name="View Final Feedback">
+      <bpmn:incoming>SF_EM_5</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_6</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EE_Employee" name="Feedback&#10;Reviewed">
+      <bpmn:incoming>SF_EM_6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_WriteEval" name="Write Performance Evaluation&#10;(Narrative + Score)">
+      <bpmn:incoming>SF_EM_4</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_7</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_SubmitEval" name="Submit Performance&#10;Evaluation">
+      <bpmn:incoming>SF_EM_7</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_8</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:eventBasedGateway id="GW_AwaitAI" name="Await AI&#10;Decision">
+      <bpmn:incoming>SF_EM_8</bpmn:incoming>
+      <bpmn:incoming>SF_EM_12</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_9</bpmn:outgoing>
+      <bpmn:outgoing>SF_EM_13</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="ICE_RevisionRequest" name="Bias Flagged –&#10;Revision Requested">
+      <bpmn:incoming>SF_EM_9</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_10</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_3" messageRef="Msg_RevisionRequest" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="Task_ReviseEval" name="Revise Evaluation">
+      <bpmn:incoming>SF_EM_10</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_ResubmitEval" name="Resubmit Revised&#10;Evaluation">
+      <bpmn:incoming>SF_EM_11</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_12</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:intermediateCatchEvent id="ICE_ApprovedManager" name="Evaluation&#10;Approved">
+      <bpmn:incoming>SF_EM_13</bpmn:incoming>
+      <bpmn:outgoing>SF_EM_14</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_4" messageRef="Msg_ApprovedManager" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="EE_Manager" name="Evaluation Process&#10;Complete">
+      <bpmn:incoming>SF_EM_14</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="SF_EM_1" sourceRef="SE_Employee" targetRef="Task_SubmitSelfEval" />
+    <bpmn:sequenceFlow id="SF_EM_2" sourceRef="Task_SubmitSelfEval" targetRef="GW_Split" />
+    <bpmn:sequenceFlow id="SF_EM_3" sourceRef="GW_Split" targetRef="ICE_FinalApproval" />
+    <bpmn:sequenceFlow id="SF_EM_4" sourceRef="GW_Split" targetRef="Task_WriteEval" />
+    <bpmn:sequenceFlow id="SF_EM_5" sourceRef="ICE_FinalApproval" targetRef="Task_ViewFinalFeedback" />
+    <bpmn:sequenceFlow id="SF_EM_6" sourceRef="Task_ViewFinalFeedback" targetRef="EE_Employee" />
+    <bpmn:sequenceFlow id="SF_EM_7" sourceRef="Task_WriteEval" targetRef="Task_SubmitEval" />
+    <bpmn:sequenceFlow id="SF_EM_8" sourceRef="Task_SubmitEval" targetRef="GW_AwaitAI" />
+    <bpmn:sequenceFlow id="SF_EM_9" sourceRef="GW_AwaitAI" targetRef="ICE_RevisionRequest" />
+    <bpmn:sequenceFlow id="SF_EM_10" sourceRef="ICE_RevisionRequest" targetRef="Task_ReviseEval" />
+    <bpmn:sequenceFlow id="SF_EM_11" sourceRef="Task_ReviseEval" targetRef="Task_ResubmitEval" />
+    <bpmn:sequenceFlow id="SF_EM_12" sourceRef="Task_ResubmitEval" targetRef="GW_AwaitAI" />
+    <bpmn:sequenceFlow id="SF_EM_13" sourceRef="GW_AwaitAI" targetRef="ICE_ApprovedManager" />
+    <bpmn:sequenceFlow id="SF_EM_14" sourceRef="ICE_ApprovedManager" targetRef="EE_Manager" />
+  </bpmn:process>
+  <bpmn:process id="Proc_HR" name="HR and AI Engine Bias Detection" isExecutable="true">
+    <bpmn:laneSet id="LS_HR">
+      <bpmn:lane id="Lane_HR" name="HR">
+        <bpmn:flowNodeRef>SE_HR</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TriggerCycle</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ViewDashboard</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_GenerateReport</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_HR</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_AI" name="AI Engine">
+        <bpmn:flowNodeRef>ICE_EvalReceived</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RunNLP</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AnalyzeScores</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_FlagBias</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_IsBias</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ITE_NotifyManager</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ICE_WaitResubmit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ApproveEval</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="SE_HR" name="Evaluation&#10;Period Begins">
+      <bpmn:outgoing>SF_HR_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_TriggerCycle" name="Trigger Evaluation Cycle">
+      <bpmn:incoming>SF_HR_1</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_ViewDashboard" name="View Bias Analytics&#10;Dashboard">
+      <bpmn:incoming>SF_HR_11</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_12</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_GenerateReport" name="Generate Fairness Report">
+      <bpmn:incoming>SF_HR_12</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_13</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EE_HR" name="Evaluation Cycle&#10;Complete">
+      <bpmn:incoming>SF_HR_13</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="ICE_EvalReceived" name="Evaluation Submitted&#10;by Manager">
+      <bpmn:incoming>SF_HR_2</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_3</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_5" messageRef="Msg_EvalSubmitted" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="Task_RunNLP" name="Run NLP Analysis&#10;(Detect Linguistic Bias)">
+      <bpmn:incoming>SF_HR_3</bpmn:incoming>
+      <bpmn:incoming>SF_HR_10</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_AnalyzeScores" name="Analyze Score Disparities&#10;Across Demographic Groups">
+      <bpmn:incoming>SF_HR_4</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_FlagBias" name="Flag Biased Content &#38;&#10;Generate Fairness Alert">
+      <bpmn:incoming>SF_HR_5</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="GW_IsBias" name="Is Bias&#10;Detected?">
+      <bpmn:incoming>SF_HR_6</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_7</bpmn:outgoing>
+      <bpmn:outgoing>SF_HR_9</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateThrowEvent id="ITE_NotifyManager" name="Notify Manager&#10;to Revise">
+      <bpmn:incoming>SF_HR_7</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_8</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_6" messageRef="Msg_RevisionRequest" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateCatchEvent id="ICE_WaitResubmit" name="Await Revised&#10;Evaluation">
+      <bpmn:incoming>SF_HR_8</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_10</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_7" messageRef="Msg_EvalResubmitted" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="Task_ApproveEval" name="Approve Evaluation">
+      <bpmn:incoming>SF_HR_9</bpmn:incoming>
+      <bpmn:outgoing>SF_HR_11</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="SF_HR_1" sourceRef="SE_HR" targetRef="Task_TriggerCycle" />
+    <bpmn:sequenceFlow id="SF_HR_2" sourceRef="Task_TriggerCycle" targetRef="ICE_EvalReceived" />
+    <bpmn:sequenceFlow id="SF_HR_3" sourceRef="ICE_EvalReceived" targetRef="Task_RunNLP" />
+    <bpmn:sequenceFlow id="SF_HR_4" sourceRef="Task_RunNLP" targetRef="Task_AnalyzeScores" />
+    <bpmn:sequenceFlow id="SF_HR_5" sourceRef="Task_AnalyzeScores" targetRef="Task_FlagBias" />
+    <bpmn:sequenceFlow id="SF_HR_6" sourceRef="Task_FlagBias" targetRef="GW_IsBias" />
+    <bpmn:sequenceFlow id="SF_HR_7" name="Yes – Bias Detected" sourceRef="GW_IsBias" targetRef="ITE_NotifyManager">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${biasDetected == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_HR_8" sourceRef="ITE_NotifyManager" targetRef="ICE_WaitResubmit" />
+    <bpmn:sequenceFlow id="SF_HR_9" name="No – Evaluation Clean" sourceRef="GW_IsBias" targetRef="Task_ApproveEval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${biasDetected == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_HR_10" sourceRef="ICE_WaitResubmit" targetRef="Task_RunNLP" />
+    <bpmn:sequenceFlow id="SF_HR_11" sourceRef="Task_ApproveEval" targetRef="Task_ViewDashboard" />
+    <bpmn:sequenceFlow id="SF_HR_12" sourceRef="Task_ViewDashboard" targetRef="Task_GenerateReport" />
+    <bpmn:sequenceFlow id="SF_HR_13" sourceRef="Task_GenerateReport" targetRef="EE_HR" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiag_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_1">
+      <bpmndi:BPMNShape id="Shp_Part_EM" bpmnElement="Part_EM" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1820" height="450" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Lane_Manager" bpmnElement="Lane_Manager" isHorizontal="true">
+        <dc:Bounds x="190" y="290" width="1790" height="240" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Lane_Employee" bpmnElement="Lane_Employee" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="1790" height="210" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_SE_Employee" bpmnElement="SE_Employee">
+        <dc:Bounds x="242" y="167" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="216" y="210" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_SubmitSelfEval" bpmnElement="Task_SubmitSelfEval">
+        <dc:Bounds x="330" y="145" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_GW_Split" bpmnElement="GW_Split">
+        <dc:Bounds x="485" y="160" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_ICE_FinalApproval" bpmnElement="ICE_FinalApproval">
+        <dc:Bounds x="1642" y="167" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1626" y="129.5" width="67" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_ViewFinalFeedback" bpmnElement="Task_ViewFinalFeedback">
+        <dc:Bounds x="1730" y="145" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_EE_Employee" bpmnElement="EE_Employee">
+        <dc:Bounds x="1892" y="167" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1866" y="210" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_WriteEval" bpmnElement="Task_WriteEval">
+        <dc:Bounds x="600" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_SubmitEval" bpmnElement="Task_SubmitEval">
+        <dc:Bounds x="760" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_GW_AwaitAI" bpmnElement="GW_AwaitAI">
+        <dc:Bounds x="915" y="365" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="898" y="325" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_ICE_RevisionRequest" bpmnElement="ICE_RevisionRequest">
+        <dc:Bounds x="1022" y="322" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1003" y="293" width="75" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_ReviseEval" bpmnElement="Task_ReviseEval">
+        <dc:Bounds x="1110" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_ResubmitEval" bpmnElement="Task_ResubmitEval">
+        <dc:Bounds x="1270" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_ICE_ApprovedManager" bpmnElement="ICE_ApprovedManager">
+        <dc:Bounds x="1022" y="447" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1014" y="409.5" width="52" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_EE_Manager" bpmnElement="EE_Manager">
+        <dc:Bounds x="1162" y="447" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1136" y="490" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_1" bpmnElement="SF_EM_1">
+        <di:waypoint x="278" y="185" />
+        <di:waypoint x="330" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_2" bpmnElement="SF_EM_2">
+        <di:waypoint x="430" y="185" />
+        <di:waypoint x="485" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_3" bpmnElement="SF_EM_3">
+        <di:waypoint x="535" y="185" />
+        <di:waypoint x="1642" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_4" bpmnElement="SF_EM_4">
+        <di:waypoint x="510" y="210" />
+        <di:waypoint x="510" y="390" />
+        <di:waypoint x="600" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_5" bpmnElement="SF_EM_5">
+        <di:waypoint x="1678" y="185" />
+        <di:waypoint x="1730" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_6" bpmnElement="SF_EM_6">
+        <di:waypoint x="1830" y="185" />
+        <di:waypoint x="1892" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_7" bpmnElement="SF_EM_7">
+        <di:waypoint x="700" y="390" />
+        <di:waypoint x="760" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_8" bpmnElement="SF_EM_8">
+        <di:waypoint x="860" y="390" />
+        <di:waypoint x="915" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_9" bpmnElement="SF_EM_9">
+        <di:waypoint x="940" y="365" />
+        <di:waypoint x="940" y="340" />
+        <di:waypoint x="1022" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_10" bpmnElement="SF_EM_10">
+        <di:waypoint x="1058" y="340" />
+        <di:waypoint x="1110" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_11" bpmnElement="SF_EM_11">
+        <di:waypoint x="1210" y="340" />
+        <di:waypoint x="1270" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_12" bpmnElement="SF_EM_12">
+        <di:waypoint x="1370" y="340" />
+        <di:waypoint x="1430" y="340" />
+        <di:waypoint x="1430" y="300" />
+        <di:waypoint x="940" y="300" />
+        <di:waypoint x="940" y="365" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_13" bpmnElement="SF_EM_13">
+        <di:waypoint x="940" y="415" />
+        <di:waypoint x="940" y="465" />
+        <di:waypoint x="1022" y="465" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_EM_14" bpmnElement="SF_EM_14">
+        <di:waypoint x="1058" y="465" />
+        <di:waypoint x="1162" y="465" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shp_Part_HR" bpmnElement="Part_HR" isHorizontal="true">
+        <dc:Bounds x="160" y="570" width="1820" height="430" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Lane_AI" bpmnElement="Lane_AI" isHorizontal="true">
+        <dc:Bounds x="190" y="740" width="1790" height="260" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Lane_HR" bpmnElement="Lane_HR" isHorizontal="true">
+        <dc:Bounds x="190" y="570" width="1790" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_SE_HR" bpmnElement="SE_HR">
+        <dc:Bounds x="242" y="637" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="216" y="680" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_TriggerCycle" bpmnElement="Task_TriggerCycle">
+        <dc:Bounds x="330" y="615" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_ViewDashboard" bpmnElement="Task_ViewDashboard">
+        <dc:Bounds x="1560" y="615" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_GenerateReport" bpmnElement="Task_GenerateReport">
+        <dc:Bounds x="1720" y="615" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_EE_HR" bpmnElement="EE_HR">
+        <dc:Bounds x="1892" y="637" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1866" y="680" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_ICE_EvalReceived" bpmnElement="ICE_EvalReceived">
+        <dc:Bounds x="462" y="802" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="436" y="845" width="88" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_RunNLP" bpmnElement="Task_RunNLP">
+        <dc:Bounds x="550" y="780" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_AnalyzeScores" bpmnElement="Task_AnalyzeScores">
+        <dc:Bounds x="710" y="780" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_FlagBias" bpmnElement="Task_FlagBias">
+        <dc:Bounds x="870" y="780" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_GW_IsBias" bpmnElement="GW_IsBias" isMarkerVisible="true">
+        <dc:Bounds x="1025" y="795" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1025" y="756" width="51" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_ITE_NotifyManager" bpmnElement="ITE_NotifyManager">
+        <dc:Bounds x="1142" y="802" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1116" y="845" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_ICE_WaitResubmit" bpmnElement="ICE_WaitResubmit">
+        <dc:Bounds x="1252" y="802" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1226" y="845" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shp_Task_ApproveEval" bpmnElement="Task_ApproveEval">
+        <dc:Bounds x="1100" y="900" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_1" bpmnElement="SF_HR_1">
+        <di:waypoint x="278" y="655" />
+        <di:waypoint x="330" y="655" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_2" bpmnElement="SF_HR_2">
+        <di:waypoint x="430" y="655" />
+        <di:waypoint x="480" y="655" />
+        <di:waypoint x="480" y="802" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_3" bpmnElement="SF_HR_3">
+        <di:waypoint x="498" y="820" />
+        <di:waypoint x="550" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_4" bpmnElement="SF_HR_4">
+        <di:waypoint x="650" y="820" />
+        <di:waypoint x="710" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_5" bpmnElement="SF_HR_5">
+        <di:waypoint x="810" y="820" />
+        <di:waypoint x="870" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_6" bpmnElement="SF_HR_6">
+        <di:waypoint x="970" y="820" />
+        <di:waypoint x="1025" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_7" bpmnElement="SF_HR_7">
+        <di:waypoint x="1075" y="820" />
+        <di:waypoint x="1142" y="820" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1070" y="786" width="51" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_8" bpmnElement="SF_HR_8">
+        <di:waypoint x="1178" y="820" />
+        <di:waypoint x="1252" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_9" bpmnElement="SF_HR_9">
+        <di:waypoint x="1050" y="845" />
+        <di:waypoint x="1050" y="940" />
+        <di:waypoint x="1100" y="940" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="991" y="896" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_10" bpmnElement="SF_HR_10">
+        <di:waypoint x="1270" y="802" />
+        <di:waypoint x="1270" y="750" />
+        <di:waypoint x="600" y="750" />
+        <di:waypoint x="600" y="780" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_11" bpmnElement="SF_HR_11">
+        <di:waypoint x="1200" y="940" />
+        <di:waypoint x="1610" y="940" />
+        <di:waypoint x="1610" y="695" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_12" bpmnElement="SF_HR_12">
+        <di:waypoint x="1660" y="655" />
+        <di:waypoint x="1720" y="655" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_SF_HR_13" bpmnElement="SF_HR_13">
+        <di:waypoint x="1820" y="655" />
+        <di:waypoint x="1892" y="655" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_MF_1" bpmnElement="MF_1">
+        <di:waypoint x="380" y="615" />
+        <di:waypoint x="380" y="550" />
+        <di:waypoint x="260" y="550" />
+        <di:waypoint x="260" y="203" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="276" y="488" width="100" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_MF_2" bpmnElement="MF_2">
+        <di:waypoint x="810" y="430" />
+        <di:waypoint x="810" y="550" />
+        <di:waypoint x="480" y="550" />
+        <di:waypoint x="480" y="802" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="580" y="528" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_MF_3" bpmnElement="MF_3">
+        <di:waypoint x="1160" y="802" />
+        <di:waypoint x="1160" y="550" />
+        <di:waypoint x="1040" y="550" />
+        <di:waypoint x="1040" y="358" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1086" y="553" width="88" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_MF_4" bpmnElement="MF_4">
+        <di:waypoint x="1320" y="380" />
+        <di:waypoint x="1320" y="550" />
+        <di:waypoint x="1270" y="550" />
+        <di:waypoint x="1270" y="802" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1288" y="528" width="52" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_MF_5" bpmnElement="MF_5">
+        <di:waypoint x="1110" y="900" />
+        <di:waypoint x="1110" y="550" />
+        <di:waypoint x="1040" y="550" />
+        <di:waypoint x="1040" y="483" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1050" y="508" width="52" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edg_MF_6" bpmnElement="MF_6">
+        <di:waypoint x="1200" y="910" />
+        <di:waypoint x="1200" y="580" />
+        <di:waypoint x="1660" y="580" />
+        <di:waypoint x="1660" y="203" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1392" y="558" width="57" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
